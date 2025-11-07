@@ -1,7 +1,8 @@
 [build-system]
 requires = [
     "setuptools", 
-    "numpy",
+    "ezc3d",
+    "numpy"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -19,7 +20,8 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "numpy", 
+    "ezc3d", 
+    "numpy"
 ]
 
 [project.optional-dependencies]
