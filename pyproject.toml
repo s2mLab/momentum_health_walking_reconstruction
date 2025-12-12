@@ -1,8 +1,6 @@
 [build-system]
 requires = [
     "setuptools", 
-    "ezc3d",
-    "numpy"
 ]
 build-backend = "setuptools.build_meta"
 

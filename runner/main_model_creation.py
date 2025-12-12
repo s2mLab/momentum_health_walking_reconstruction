@@ -45,6 +45,34 @@ class Markers(Enum):
     LKNEE = "LKNE"
     LKNEEM = "LKNEM"
 
+    LTIB = "LTIB"
+    LTIBF = "LTIBF"
+    LTIBD = "LTIBD"
+    LANK = "LANK"
+    LANKM = "LANKM"
+
+    LHEE = "LHEE"
+    LNAV = "LNAV"
+    LTOE = "LTOE"
+    LTOE5 = "LTOE5"
+
+    RTHI = "RTHI"
+    RTHIB = "RTHIB"
+    RTHID = "RTHID"
+    RKNEE = "RKNE"
+    RKNEEM = "RKNEM"
+
+    RTIB = "RTIB"
+    RTIBF = "RTIBF"
+    RTIBD = "RTIBD"
+    RANK = "RANK"
+    RANKM = "RANKM"
+
+    RHEE = "RHEE"
+    RNAV = "RNAV"
+    RTOE = "RTOE"
+    RTOE5 = "RTOE5"
+
 
 class NexusMarkers:
     def __init__(self, file: C3dData):
@@ -52,6 +80,7 @@ class NexusMarkers:
         for m in Markers:
             is_found = False
             for name in file.marker_names:
+                name: str
                 if name.endswith(m.value):
                     self._markers[m] = name
                     is_found = True
@@ -63,8 +92,10 @@ class NexusMarkers:
         return self._markers[marker]
 
 
-def model_creation_from_measured_data(output_model_filepath: str, calibration_folder: Path, animate_model: bool = True):
-    # Load all the required data files
+def model_creation_from_measured_data(
+    output_model_filepath: str, calibration_folder: Path, animate_model: bool = True, use_score: bool = True
+):
+    # --- Load all the required data files --- #
     static_file = list(calibration_folder.glob("*static.c3d"))
     if len(static_file) != 1:
         raise RuntimeError(f"Expected exactly one static file in {calibration_folder}, found {len(static_file)}.")
@@ -77,7 +108,7 @@ def model_creation_from_measured_data(output_model_filepath: str, calibration_fo
         )
     left_hip_functionnal_trial = C3dData(left_hip_functionnal_file[0].as_posix())
 
-    # Find the full name of each marker
+    # --- Find the full name of each marker --- #
     markers = NexusMarkers(static_trial)
 
     # Hip
@@ -93,9 +124,43 @@ def model_creation_from_measured_data(output_model_filepath: str, calibration_fo
     lknee = markers[Markers.LKNEE]
     lkneem = markers[Markers.LKNEEM]
 
-    # Generate the personalized kinematic model
+    # LShank
+    ltib = markers[Markers.LTIB]
+    ltibf = markers[Markers.LTIBF]
+    ltibd = markers[Markers.LTIBD]
+    lank = markers[Markers.LANK]
+    lankm = markers[Markers.LANKM]
+
+    # LFoot
+    lhee = markers[Markers.LHEE]
+    lnav = markers[Markers.LNAV]
+    ltoe = markers[Markers.LTOE]
+    ltoe5 = markers[Markers.LTOE5]
+
+    # RThigh
+    rthi = markers[Markers.RTHI]
+    rthib = markers[Markers.RTHIB]
+    rthid = markers[Markers.RTHID]
+    rknee = markers[Markers.RKNEE]
+    rkneem = markers[Markers.RKNEEM]
+
+    # RShank
+    rtib = markers[Markers.RTIB]
+    rtibf = markers[Markers.RTIBF]
+    rtibd = markers[Markers.RTIBD]
+    rank = markers[Markers.RANK]
+    rankm = markers[Markers.RANKM]
+
+    # RFoot
+    rhee = markers[Markers.RHEE]
+    rnav = markers[Markers.RNAV]
+    rtoe = markers[Markers.RTOE]
+    rtoe5 = markers[Markers.RTOE5]
+
+    # --- Generate the personalized kinematic model --- #
     model = BiomechanicalModel()
 
+    # Hip
     model.add_segment(
         Segment(
             name="Pelvis",
@@ -110,11 +175,11 @@ def model_creation_from_measured_data(output_model_filepath: str, calibration_fo
                     end=SegmentCoordinateSystemUtils.mean_markers([rpsi, rasi]),
                 ),
                 second_axis=Axis(
-                    name=Axis.Name.Z,
+                    name=Axis.Name.Y,
                     start=SegmentCoordinateSystemUtils.mean_markers([lpsi, rpsi]),
                     end=SegmentCoordinateSystemUtils.mean_markers([lasi, rasi]),
                 ),
-                axis_to_keep=Axis.Name.Z,
+                axis_to_keep=Axis.Name.Y,
             ),
             mesh=Mesh((lpsi, rpsi, rasi, lasi, lpsi), is_local=False),
         )
@@ -124,22 +189,29 @@ def model_creation_from_measured_data(output_model_filepath: str, calibration_fo
     model.segments["Pelvis"].add_marker(Marker(lasi, is_technical=True, is_anatomical=True))
     model.segments["Pelvis"].add_marker(Marker(rasi, is_technical=True, is_anatomical=True))
 
-    mid_knee = SegmentCoordinateSystemUtils.mean_markers([lknee, lkneem])
+    # LThigh
+    lknee_mid = SegmentCoordinateSystemUtils.mean_markers([lknee, lkneem])
+    lthi_origin = Score() if use_score else lasi
+
+    lthi_score = SegmentCoordinateSystemUtils.score(
+        functional_data=left_hip_functionnal_trial,
+        parent_marker_names=[lpsi, rpsi, lasi, rasi],
+        child_marker_names=[lthi, lthib, lthid, lknee, lkneem],
+    )
+    lthi_origin = lambda x, model: lthi_score.from_markers(x, model)
+
     model.add_segment(
         Segment(
             name="LThigh",
             parent_name="Pelvis",
             rotations=Rotations.XYZ,
             segment_coordinate_system=SegmentCoordinateSystem(
-                origin=lasi,
-                first_axis=Axis(name=Axis.Name.Z, start=mid_knee, end=lasi),
+                origin=lthi_origin,
+                first_axis=Axis(name=Axis.Name.Z, start=lknee_mid, end=lthi_origin),
                 second_axis=Axis(name=Axis.Name.X, start=lknee, end=lkneem),
                 axis_to_keep=Axis.Name.Z,
             ),
-            mesh=Mesh(
-                (lasi, lthi, lthib, lthid, lthi, lthid, mid_knee, lknee, lkneem),
-                is_local=False,
-            ),
+            mesh=Mesh((lasi, lthi, lthib, lthid, lthi, lthid, lknee_mid, lknee, lkneem), is_local=False),
         )
     )
     model.segments["LThigh"].add_marker(Marker(lthi, is_technical=True, is_anatomical=False))
@@ -148,172 +220,119 @@ def model_creation_from_measured_data(output_model_filepath: str, calibration_fo
     model.segments["LThigh"].add_marker(Marker(lknee, is_technical=True, is_anatomical=True))
     model.segments["LThigh"].add_marker(Marker(lkneem, is_technical=True, is_anatomical=True))
 
-    # reduced_model.add_segment(
-    #     Segment(
-    #         name="RTibia",
-    #         parent_name="RFemur",
-    #         rotations=Rotations.X,
-    #         inertia_parameters=de_leva[SegmentName.SHANK],
-    #         segment_coordinate_system=SegmentCoordinateSystem(
-    #             origin=SegmentCoordinateSystemUtils.mean_markers(["RMFE", "RLFE"]),
-    #             first_axis=Axis(name=Axis.Name.X, start="RSPH", end="RLM"),
-    #             second_axis=Axis(
-    #                 name=Axis.Name.Z,
-    #                 start=SegmentCoordinateSystemUtils.mean_markers(["RSPH", "RLM"]),
-    #                 end=SegmentCoordinateSystemUtils.mean_markers(["RMFE", "RLFE"]),
-    #             ),
-    #             axis_to_keep=Axis.Name.Z,
-    #         ),
-    #         mesh=Mesh(("RMFE", "RSPH", "RLM", "RLFE"), is_local=False),
-    #     )
-    # )
-    # reduced_model.segments["RTibia"].add_marker(Marker("RLM", is_technical=True, is_anatomical=True))
-    # reduced_model.segments["RTibia"].add_marker(Marker("RSPH", is_technical=True, is_anatomical=True))
+    # LShank
+    lank_mid = SegmentCoordinateSystemUtils.mean_markers([lank, lankm])
+    ltib_origin = Score() if use_score else lknee_mid
+    model.add_segment(
+        Segment(
+            name="LShank",
+            parent_name="LThigh",
+            rotations=Rotations.X,
+            segment_coordinate_system=SegmentCoordinateSystem(
+                origin=ltib_origin,
+                first_axis=Axis(name=Axis.Name.Z, start=lank_mid, end=ltib_origin),
+                second_axis=Axis(name=Axis.Name.X, start=lknee, end=lkneem),
+                axis_to_keep=Axis.Name.X,
+            ),
+            mesh=Mesh((ltibd, ltib, ltibf, ltibd, lank_mid, lank, lankm), is_local=False),
+        )
+    )
+    model.segments["LShank"].add_marker(Marker(ltib, is_technical=True, is_anatomical=True))
+    model.segments["LShank"].add_marker(Marker(ltibf, is_technical=True, is_anatomical=True))
+    model.segments["LShank"].add_marker(Marker(ltibd, is_technical=True, is_anatomical=True))
+    model.segments["LShank"].add_marker(Marker(lank, is_technical=True, is_anatomical=True))
+    model.segments["LShank"].add_marker(Marker(lankm, is_technical=True, is_anatomical=True))
 
-    # # The foot is a special case since the position of the ankle relatively to the foot length is not given in De Leva
-    # # So here we assume that the foot com is in the middle of the three foot markers
-    # foot_inertia_parameters = de_leva[SegmentName.FOOT]
-    # rt_matrix = RotoTransMatrix()
-    # rt_matrix.from_euler_angles_and_translation(
-    #     angle_sequence="y",
-    #     angles=np.array([-np.pi / 2]),
-    #     translation=np.array([0.0, 0.0, 0.0]),
-    # )
-    # foot_inertia_parameters.center_of_mass = lambda m, bio: rt_matrix.rt_matrix @ np.nanmean(
-    #     np.nanmean(np.array([m[name] for name in ["LSPH", "LLM", "LTT2"]]), axis=0)
-    #     - np.nanmean(np.array([m[name] for name in ["LSPH", "LLM"]]), axis=0),
-    #     axis=1,
-    # )
+    # LFoot
+    lfoot_origin = Score() if use_score else lank_mid
+    model.add_segment(
+        Segment(
+            name="LFoot",
+            parent_name="LShank",
+            rotations=Rotations.XZ,
+            segment_coordinate_system=SegmentCoordinateSystem(
+                origin=lfoot_origin,
+                first_axis=Axis(Axis.Name.Z, start=ltoe, end=lhee),
+                second_axis=Axis(Axis.Name.X, start=lank, end=lankm),
+                axis_to_keep=Axis.Name.X,
+            ),
+            mesh=Mesh((lhee, lnav, ltoe, lhee, ltoe, ltoe5, lhee, ltoe5, lnav), is_local=False),
+        )
+    )
+    model.segments["LFoot"].add_marker(Marker(lhee, is_technical=True, is_anatomical=True))
+    model.segments["LFoot"].add_marker(Marker(lnav, is_technical=True, is_anatomical=True))
+    model.segments["LFoot"].add_marker(Marker(ltoe, is_technical=True, is_anatomical=True))
+    model.segments["LFoot"].add_marker(Marker(ltoe5, is_technical=True, is_anatomical=True))
 
-    # reduced_model.add_segment(
-    #     Segment(
-    #         name="RFoot",
-    #         parent_name="RTibia",
-    #         rotations=Rotations.X,
-    #         segment_coordinate_system=SegmentCoordinateSystem(
-    #             origin=SegmentCoordinateSystemUtils.mean_markers(["RSPH", "RLM"]),
-    #             first_axis=Axis(
-    #                 Axis.Name.Z, start=SegmentCoordinateSystemUtils.mean_markers(["RSPH", "RLM"]), end="RTT2"
-    #             ),
-    #             second_axis=Axis(Axis.Name.X, start="RSPH", end="RLM"),
-    #             axis_to_keep=Axis.Name.Z,
-    #         ),
-    #         inertia_parameters=foot_inertia_parameters,
-    #         mesh=Mesh(("RLM", "RTT2", "RSPH", "RLM"), is_local=False),
-    #     )
-    # )
-    # reduced_model.segments["RFoot"].add_marker(Marker("RTT2", is_technical=True, is_anatomical=True))
+    # RThigh
+    rknee_mid = SegmentCoordinateSystemUtils.mean_markers([rknee, rkneem])
+    rthi_origin = Score() if use_score else rasi
+    model.add_segment(
+        Segment(
+            name="RThigh",
+            parent_name="Pelvis",
+            rotations=Rotations.XYZ,
+            segment_coordinate_system=SegmentCoordinateSystem(
+                origin=rthi_origin,
+                first_axis=Axis(name=Axis.Name.Z, start=rknee_mid, end=rthi_origin),
+                second_axis=Axis(name=Axis.Name.X, start=rknee, end=rkneem),
+                axis_to_keep=Axis.Name.Z,
+            ),
+            mesh=Mesh((rasi, rthi, rthib, rthid, rthi, rthid, rknee_mid, rknee, rkneem), is_local=False),
+        )
+    )
+    model.segments["RThigh"].add_marker(Marker(rthi, is_technical=True, is_anatomical=False))
+    model.segments["RThigh"].add_marker(Marker(rthib, is_technical=True, is_anatomical=False))
+    model.segments["RThigh"].add_marker(Marker(rthid, is_technical=True, is_anatomical=False))
+    model.segments["RThigh"].add_marker(Marker(rknee, is_technical=True, is_anatomical=True))
+    model.segments["RThigh"].add_marker(Marker(rkneem, is_technical=True, is_anatomical=True))
 
-    # reduced_model.add_segment(
-    #     Segment(
-    #         name="LFemur",
-    #         parent_name="Pelvis",
-    #         rotations=Rotations.XY,
-    #         inertia_parameters=de_leva[SegmentName.THIGH],
-    #         segment_coordinate_system=SegmentCoordinateSystem(
-    #             origin=lambda m, bio: SegmentCoordinateSystemUtils.mean_markers(["LPSIS", "LASIS"])(
-    #                 static_trial.values, None
-    #             )
-    #             - np.array([0.0, 0.0, 0.05 * total_height, 0.0]),
-    #             first_axis=Axis(name=Axis.Name.X, start="LLFE", end="LMFE"),
-    #             second_axis=Axis(
-    #                 name=Axis.Name.Z,
-    #                 start=SegmentCoordinateSystemUtils.mean_markers(["LMFE", "LLFE"]),
-    #                 end=SegmentCoordinateSystemUtils.mean_markers(["LPSIS", "LASIS"]),
-    #             ),
-    #             axis_to_keep=Axis.Name.Z,
-    #         ),
-    #         mesh=Mesh(
-    #             (
-    #                 lambda m, bio: SegmentCoordinateSystemUtils.mean_markers(["LPSIS", "LASIS"])(
-    #                     static_trial.values, None
-    #                 )
-    #                 - np.array([0.0, 0.0, 0.05 * total_height, 0.0]),
-    #                 "LMFE",
-    #                 "LLFE",
-    #                 lambda m, bio: SegmentCoordinateSystemUtils.mean_markers(["LPSIS", "LASIS"])(
-    #                     static_trial.values, None
-    #                 )
-    #                 - np.array([0.0, 0.0, 0.05 * total_height, 0.0]),
-    #             ),
-    #             is_local=False,
-    #         ),
-    #     )
-    # )
-    # reduced_model.segments["LFemur"].add_marker(Marker("LLFE", is_technical=True, is_anatomical=True))
-    # reduced_model.segments["LFemur"].add_marker(Marker("LMFE", is_technical=True, is_anatomical=True))
+    # RShank
+    rank_mid = SegmentCoordinateSystemUtils.mean_markers([rank, rankm])
+    rtib_origin = Score() if use_score else rknee_mid
+    model.add_segment(
+        Segment(
+            name="RShank",
+            parent_name="RThigh",
+            rotations=Rotations.X,
+            segment_coordinate_system=SegmentCoordinateSystem(
+                origin=rtib_origin,
+                first_axis=Axis(name=Axis.Name.Z, start=rank_mid, end=rtib_origin),
+                second_axis=Axis(name=Axis.Name.X, start=rknee, end=rkneem),
+                axis_to_keep=Axis.Name.X,
+            ),
+            mesh=Mesh((rtibd, rtib, rtibf, rtibd, rank_mid, rank, rankm), is_local=False),
+        )
+    )
+    model.segments["RShank"].add_marker(Marker(rtib, is_technical=True, is_anatomical=True))
+    model.segments["RShank"].add_marker(Marker(rtibf, is_technical=True, is_anatomical=True))
+    model.segments["RShank"].add_marker(Marker(rtibd, is_technical=True, is_anatomical=True))
+    model.segments["RShank"].add_marker(Marker(rank, is_technical=True, is_anatomical=True))
+    model.segments["RShank"].add_marker(Marker(rankm, is_technical=True, is_anatomical=True))
 
-    # reduced_model.add_segment(
-    #     Segment(
-    #         name="LTibia",
-    #         parent_name="LFemur",
-    #         rotations=Rotations.X,
-    #         inertia_parameters=de_leva[SegmentName.SHANK],
-    #         segment_coordinate_system=SegmentCoordinateSystem(
-    #             origin=SegmentCoordinateSystemUtils.mean_markers(["LMFE", "LLFE"]),
-    #             first_axis=Axis(name=Axis.Name.X, start="LLM", end="LSPH"),
-    #             second_axis=Axis(
-    #                 name=Axis.Name.Z,
-    #                 start=SegmentCoordinateSystemUtils.mean_markers(["LSPH", "LLM"]),
-    #                 end=SegmentCoordinateSystemUtils.mean_markers(["LMFE", "LLFE"]),
-    #             ),
-    #             axis_to_keep=Axis.Name.Z,
-    #         ),
-    #         mesh=Mesh(("LMFE", "LSPH", "LLM", "LLFE"), is_local=False),
-    #     )
-    # )
-    # reduced_model.segments["LTibia"].add_marker(Marker("LLM", is_technical=True, is_anatomical=True))
-    # reduced_model.segments["LTibia"].add_marker(Marker("LSPH", is_technical=True, is_anatomical=True))
-
-    # foot_inertia_parameters = de_leva[SegmentName.FOOT]
-    # rt_matrix = RotoTransMatrix()
-    # rt_matrix.from_euler_angles_and_translation(
-    #     angle_sequence="y",
-    #     angles=np.array([-np.pi / 2]),
-    #     translation=np.array([0.0, 0.0, 0.0]),
-    # )
-    # foot_inertia_parameters.center_of_mass = lambda m, bio: rt_matrix.rt_matrix @ np.nanmean(
-    #     np.nanmean(np.array([m[name] for name in ["LSPH", "LLM", "LTT2"]]), axis=0)
-    #     - np.nanmean(np.array([m[name] for name in ["LSPH", "LLM"]]), axis=0),
-    #     axis=1,
-    # )
-
-    # reduced_model.add_segment(
-    #     Segment(
-    #         name="LFoot",
-    #         parent_name="LTibia",
-    #         rotations=Rotations.X,
-    #         segment_coordinate_system=SegmentCoordinateSystem(
-    #             origin=SegmentCoordinateSystemUtils.mean_markers(["LSPH", "LLM"]),
-    #             first_axis=Axis(
-    #                 Axis.Name.Z, start=SegmentCoordinateSystemUtils.mean_markers(["LLM", "LSPH"]), end="LTT2"
-    #             ),
-    #             second_axis=Axis(Axis.Name.X, start="LLM", end="LSPH"),
-    #             axis_to_keep=Axis.Name.Z,
-    #         ),
-    #         inertia_parameters=foot_inertia_parameters,
-    #         mesh=Mesh(("LLM", "LTT2", "LSPH", "LLM"), is_local=False),
-    #     )
-    # )
-    # reduced_model.segments["LFoot"].add_marker(Marker("LTT2", is_technical=True, is_anatomical=True))
+    # RFoot
+    rfoot_origin = Score() if use_score else rank_mid
+    model.add_segment(
+        Segment(
+            name="RFoot",
+            parent_name="RShank",
+            rotations=Rotations.XZ,
+            segment_coordinate_system=SegmentCoordinateSystem(
+                origin=rfoot_origin,
+                first_axis=Axis(Axis.Name.Z, start=rtoe, end=rhee),
+                second_axis=Axis(Axis.Name.X, start=rankm, end=rank),
+                axis_to_keep=Axis.Name.X,
+            ),
+            mesh=Mesh((rhee, rnav, rtoe, rhee, rtoe, rtoe5, rhee, rtoe5, rnav), is_local=False),
+        )
+    )
+    model.segments["RFoot"].add_marker(Marker(rhee, is_technical=True, is_anatomical=True))
+    model.segments["RFoot"].add_marker(Marker(rnav, is_technical=True, is_anatomical=True))
+    model.segments["RFoot"].add_marker(Marker(rtoe, is_technical=True, is_anatomical=True))
+    model.segments["RFoot"].add_marker(Marker(rtoe5, is_technical=True, is_anatomical=True))
 
     # Put the model together, print it and print it to a bioMod file
     model_real = model.to_real(static_trial)
-
-    # Set up the joint center identification tool
-    joint_center_tool = JointCenterTool(model_real)
-    # Example for the right hip
-    joint_center_tool.add(
-        Score(
-            functional_c3d=left_hip_functionnal_trial,
-            parent_name="Pelvis",
-            child_name="LThigh",
-            parent_marker_names=[lpsi, rpsi, lasi, rasi],
-            child_marker_names=[lthi, lthib, lthid, lknee, lkneem],
-        )
-    )
-    model_real = joint_center_tool.replace_joint_centers()
-
     model_real.to_biomod(output_model_filepath)
 
     if animate_model:
@@ -331,7 +350,10 @@ def main():
     calibration_folder = data_base_folder / "calibration_files"
 
     model_creation_from_measured_data(
-        output_model_filepath=output_model_filepath, calibration_folder=calibration_folder, animate_model=True
+        output_model_filepath=output_model_filepath,
+        calibration_folder=calibration_folder,
+        animate_model=True,
+        use_score=False,
     )
 
 
