@@ -5,6 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Model Creation",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/runner/main_model_creation.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "DATA_BASE_FOLDER": "<Path to your data folder>",
+            },
+            "cwd": "${workspaceFolder}/runner/"
+        },
+        {
             "name": "C3D to CSV",
             "type": "debugpy",
             "request": "launch",

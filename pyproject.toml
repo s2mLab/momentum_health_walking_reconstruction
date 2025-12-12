@@ -20,8 +20,9 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "biobuddy",
     "ezc3d", 
-    "numpy"
+    "numpy",
 ]
 
 [project.optional-dependencies]

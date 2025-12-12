@@ -11,6 +11,7 @@ First, install the required dependencies using pip:
 pip install . && pip uninstall -y momentum_health_walking_reconstruction
 ```
 Please note `ezc3d` is not yet available on PyPI for Python 3.14, so if the previous command fails, make sure to downgrade to Python 3.13 or lower.
+If you need Python 3.14 installed, you can compile `ezc3d` from the source (https://github.com/pyomeca/ezc3d).
 
 
 ### Using the package
