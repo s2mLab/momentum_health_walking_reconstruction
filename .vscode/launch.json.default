@@ -5,10 +5,23 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Use adder",
+            "name": "C3D to CSV",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/runner/main.py",
+            "program": "${workspaceFolder}/runner/main_c3d_to_csv.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "DATA_BASE_FOLDER": "<Path to your data folder>",
+            },
+            "cwd": "${workspaceFolder}/runner/"
+        },
+        {
+            "name": "Example Extract Header Info",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/runner/main_extract_header_info.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {

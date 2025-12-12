@@ -160,19 +160,19 @@ def main():
         print(f"Processing file: {c3d_file}")
         c3d = ezc3d.c3d(str(c3d_file))
 
-        # Extract header
-        c3d_header: list[str] = c3d.parameters.POINT.LABELS["value"]
+        # Extract the point names
+        point_labels: list[str] = c3d.parameters.POINT.LABELS["value"]
 
         # Prepare the output data (4 x N x num_frames)
         out = np.ndarray((4, len(csv_header), c3d["data"]["points"].shape[2]), dtype=float) * np.nan
         for i, name in enumerate(csv_header):
-            if name in c3d_header:
-                out[:, i, :] = c3d["data"]["points"][:, c3d_header.index(name), :]
+            if name in point_labels:
+                out[:, i, :] = c3d["data"]["points"][:, point_labels.index(name), :]
             else:
                 for prefix in allow_header_prefix:
                     prefixed_name = f"{prefix}:{name}"
-                    if prefixed_name in c3d_header:
-                        out[:, i, :] = c3d["data"]["points"][:, c3d_header.index(prefixed_name), :]
+                    if prefixed_name in point_labels:
+                        out[:, i, :] = c3d["data"]["points"][:, point_labels.index(prefixed_name), :]
                         break
         out = out[:3, :, :]  # Drop the line of ones
 
