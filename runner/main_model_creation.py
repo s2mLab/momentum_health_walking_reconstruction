@@ -191,14 +191,16 @@ def model_creation_from_measured_data(
 
     # LThigh
     lknee_mid = SegmentCoordinateSystemUtils.mean_markers([lknee, lkneem])
-    lthi_origin = Score() if use_score else lasi
-
-    lthi_score = SegmentCoordinateSystemUtils.score(
-        functional_data=left_hip_functionnal_trial,
-        parent_marker_names=[lpsi, rpsi, lasi, rasi],
-        child_marker_names=[lthi, lthib, lthid, lknee, lkneem],
+    lthi_origin = (
+        SegmentCoordinateSystemUtils.score(
+            functional_data=left_hip_functionnal_trial,
+            parent_marker_names=[lpsi, rpsi, lasi, rasi],
+            child_marker_names=model.segments["LThigh"].marker_names,
+            vizualize=True,
+        )
+        if use_score
+        else lasi
     )
-    lthi_origin = lambda x, model: lthi_score.from_markers(x, model)
 
     model.add_segment(
         Segment(
@@ -353,7 +355,7 @@ def main():
         output_model_filepath=output_model_filepath,
         calibration_folder=calibration_folder,
         animate_model=True,
-        use_score=False,
+        use_score=True,
     )
 
 
