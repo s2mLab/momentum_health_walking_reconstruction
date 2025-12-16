@@ -204,10 +204,13 @@ def model_creation_from_measured_data(
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=lthi_origin,
                 first_axis=Axis(name=Axis.Name.Z, start=lknee_mid, end=lthi_origin),
-                second_axis=Axis(name=Axis.Name.X, start=lknee, end=lkneem),
+                second_axis=Axis(name=Axis.Name.X, start=lasi, end=rasi),
                 axis_to_keep=Axis.Name.Z,
             ),
-            mesh=Mesh((lasi, lthi, lthib, lthid, lthi, lthid, lknee_mid, lknee, lkneem), is_local=False),
+            mesh=Mesh(
+                (lthi_origin, lthi, lthib, lthi_origin, lthib, lthid, lthi, lthid, lknee_mid, lknee, lkneem),
+                is_local=False,
+            ),
         )
     )
     model.segments["LThigh"].add_marker(Marker(lthi, is_technical=True, is_anatomical=False))
@@ -217,28 +220,26 @@ def model_creation_from_measured_data(
     model.segments["LThigh"].add_marker(Marker(lkneem, is_technical=False, is_anatomical=True))
 
     # LShank
-    lank_mid = SegmentCoordinateSystemUtils.mean_markers([lank, lankm])
-    shank_vertical_axis = Axis(name=Axis.Name.Z, start=lank_mid, end=lknee_mid)
-    ltib_axis, ltib_origin = (
+    ltib_axis = (
         SegmentCoordinateSystemUtils.sara(
             name=Axis.Name.X,
             functional_data=trials["left_knee_functionnal"],
-            parent_marker_names=[lthi, lthib, lthid],
-            child_marker_names=[ltib, ltibf, ltibd],
-            perpendicular_axis=shank_vertical_axis,
-            vizualize=True,
+            parent_marker_names=[ltibd, ltib, ltibf],  # Child and parent swapped to get correct axis direction
+            child_marker_names=[lthib, lthid, lthi],
+            vizualize=False,
         )
-        # if use_score
-        # else (Axis(name=Axis.Name.X, start=lknee, end=lkneem), lknee_mid)
+        if use_score
+        else Axis(name=Axis.Name.X, start=lknee_mid, end=lkneem)
     )
+    lank_mid = SegmentCoordinateSystemUtils.mean_markers([lank, lankm])
     model.add_segment(
         Segment(
             name="LShank",
             parent_name="LThigh",
             rotations=Rotations.X,
             segment_coordinate_system=SegmentCoordinateSystem(
-                origin=ltib_origin,
-                first_axis=shank_vertical_axis,
+                origin=ltib_axis.start,
+                first_axis=Axis(name=Axis.Name.Z, start=lank_mid, end=ltib_axis.start),
                 second_axis=ltib_axis,
                 axis_to_keep=Axis.Name.X,
             ),
@@ -257,7 +258,7 @@ def model_creation_from_measured_data(
             functional_data=trials["left_ankle_functionnal"],
             parent_marker_names=[ltib, ltibf, ltibd],
             child_marker_names=[lhee, lnav, ltoe, ltoe5],
-            vizualize=True,
+            vizualize=False,
         )
         if use_score
         else lank_mid
@@ -301,10 +302,13 @@ def model_creation_from_measured_data(
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=rthi_origin,
                 first_axis=Axis(name=Axis.Name.Z, start=rknee_mid, end=rthi_origin),
-                second_axis=Axis(name=Axis.Name.X, start=rknee, end=rkneem),
+                second_axis=Axis(name=Axis.Name.X, start=lasi, end=rasi),
                 axis_to_keep=Axis.Name.Z,
             ),
-            mesh=Mesh((rasi, rthi, rthib, rthid, rthi, rthid, rknee_mid, rknee, rkneem), is_local=False),
+            mesh=Mesh(
+                (rthi_origin, rthi, rthib, rthi_origin, rthib, rthid, rthi, rthid, rknee_mid, rknee, rkneem),
+                is_local=False,
+            ),
         )
     )
     model.segments["RThigh"].add_marker(Marker(rthi, is_technical=True, is_anatomical=False))
@@ -314,17 +318,27 @@ def model_creation_from_measured_data(
     model.segments["RThigh"].add_marker(Marker(rkneem, is_technical=False, is_anatomical=True))
 
     # RShank
+    rtib_axis = (
+        SegmentCoordinateSystemUtils.sara(
+            name=Axis.Name.X,
+            functional_data=trials["right_knee_functionnal"],
+            parent_marker_names=[rthid, rthi, rthib],
+            child_marker_names=[rtib, rtibf, rtibd],
+            vizualize=False,
+        )
+        if use_score
+        else Axis(name=Axis.Name.X, start=rkneem, end=rknee_mid)
+    )
     rank_mid = SegmentCoordinateSystemUtils.mean_markers([rank, rankm])
-    rtib_origin = rknee_mid
     model.add_segment(
         Segment(
             name="RShank",
             parent_name="RThigh",
             rotations=Rotations.X,
             segment_coordinate_system=SegmentCoordinateSystem(
-                origin=rtib_origin,
-                first_axis=Axis(name=Axis.Name.Z, start=rank_mid, end=rtib_origin),
-                second_axis=Axis(name=Axis.Name.X, start=rknee, end=rkneem),
+                origin=rtib_axis.start,
+                first_axis=Axis(name=Axis.Name.Z, start=rank_mid, end=rtib_axis.start),
+                second_axis=rtib_axis,
                 axis_to_keep=Axis.Name.X,
             ),
             mesh=Mesh((rtibd, rtib, rtibf, rtibd, rank_mid, rank, rankm), is_local=False),
@@ -342,7 +356,7 @@ def model_creation_from_measured_data(
             functional_data=trials["right_ankle_functionnal"],
             parent_marker_names=[rtib, rtibf, rtibd],
             child_marker_names=[rhee, rnav, rtoe, rtoe5],
-            vizualize=True,
+            vizualize=False,
         )
         if use_score
         else rank_mid
@@ -388,7 +402,7 @@ def main():
         output_model_filepath=output_model_filepath,
         calibration_folder=calibration_folder,
         animate_model=True,
-        use_score=False,
+        use_score=True,
     )
 
 
