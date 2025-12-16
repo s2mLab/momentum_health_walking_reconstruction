@@ -24,6 +24,16 @@ from biobuddy import (
 
 
 class Markers(Enum):
+
+    C7 = "C7"
+    C2 = "C2"
+    T6 = "T6"
+    T10 = "T10"
+    S1 = "S1"
+    S3 = "S3"
+    CLAV = "CLAV"
+    STRN = "STRN"
+
     LPSI = "LPSI"
     RPSI = "RPSI"
     LASI = "LASI"
@@ -105,6 +115,16 @@ def model_creation_from_measured_data(
     # --- Find the full name of each marker --- #
     markers = NexusMarkers(trials["static"])
 
+    # Trunk
+    c7 = markers[Markers.C7]
+    c2 = markers[Markers.C2]
+    t6 = markers[Markers.T6]
+    t10 = markers[Markers.T10]
+    s1 = markers[Markers.S1]
+    s3 = markers[Markers.S3]
+    clav = markers[Markers.CLAV]
+    strn = markers[Markers.STRN]
+
     # Hip
     lpsi = markers[Markers.LPSI]
     rpsi = markers[Markers.RPSI]
@@ -182,6 +202,39 @@ def model_creation_from_measured_data(
     model.segments["Pelvis"].add_marker(Marker(rpsi, is_technical=True, is_anatomical=True))
     model.segments["Pelvis"].add_marker(Marker(lasi, is_technical=True, is_anatomical=True))
     model.segments["Pelvis"].add_marker(Marker(rasi, is_technical=True, is_anatomical=True))
+
+    # Trunk
+    model.add_segment(
+        Segment(
+            name="Trunk",
+            parent_name="Pelvis",
+            translations=Translations.XYZ,
+            rotations=Rotations.XYZ,
+            segment_coordinate_system=SegmentCoordinateSystem(
+                origin=clav,
+                first_axis=Axis(
+                    name=Axis.Name.Y,
+                    start=SegmentCoordinateSystemUtils.mean_markers([t10, c7]),
+                    end=SegmentCoordinateSystemUtils.mean_markers([strn, clav]),
+                ),
+                second_axis=Axis(
+                    name=Axis.Name.Z,
+                    start=SegmentCoordinateSystemUtils.mean_markers([t10, strn]),
+                    end=SegmentCoordinateSystemUtils.mean_markers([c7, clav]),
+                ),
+                axis_to_keep=Axis.Name.Z,
+            ),
+            mesh=Mesh((s3, s1, t10, t6, c7, c2, c7, clav, strn, t10), is_local=False),
+        )
+    )
+    model.segments["Trunk"].add_marker(Marker(c7, is_technical=True, is_anatomical=True))
+    model.segments["Trunk"].add_marker(Marker(c2, is_technical=True, is_anatomical=True))
+    model.segments["Trunk"].add_marker(Marker(t6, is_technical=True, is_anatomical=True))
+    model.segments["Trunk"].add_marker(Marker(t10, is_technical=True, is_anatomical=True))
+    model.segments["Trunk"].add_marker(Marker(s1, is_technical=True, is_anatomical=True))
+    model.segments["Trunk"].add_marker(Marker(s3, is_technical=True, is_anatomical=True))
+    model.segments["Trunk"].add_marker(Marker(clav, is_technical=True, is_anatomical=True))
+    model.segments["Trunk"].add_marker(Marker(strn, is_technical=True, is_anatomical=True))
 
     # LThigh
     lknee_mid = SegmentCoordinateSystemUtils.mean_markers([lknee, lkneem])
