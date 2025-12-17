@@ -14,6 +14,10 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}",
                 "DATA_BASE_FOLDER": "<Path to your data folder>",
+                "RESULTS_BASE_FOLDER": "<Path to your result folder>",
+                "SUBJECT_NAMES": "comma,separated,subject,names",
+                "ANIMATE_MODEL": "<true | [false]>",
+                "OVERRIDE_EXISTING_MODEL": "<true | [false]>",
             },
             "cwd": "${workspaceFolder}/runner/"
         },
