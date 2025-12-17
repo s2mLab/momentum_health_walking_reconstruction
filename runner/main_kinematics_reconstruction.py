@@ -17,6 +17,7 @@ def main():
 
     reconstruct_all_kinematics(
         data_base_folder=Path(os.getenv("DATA_BASE_FOLDER")),
+        models_base_folder=Path(os.getenv("MODELS_BASE_FOLDER")),
         subject_names=os.getenv("SUBJECT_NAMES").split(","),
         results_folder=Path(os.getenv("RESULTS_BASE_FOLDER")),
         override_existing_model=os.getenv("OVERRIDE_EXISTING_MODEL") == "true",
