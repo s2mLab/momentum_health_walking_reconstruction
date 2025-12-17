@@ -242,7 +242,6 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             ),
         )
     )
-    model.segments["LThigh"].add_marker(Marker(lthi_origin, is_technical=True, is_anatomical=False))
     model.segments["LThigh"].add_marker(Marker(lthi, is_technical=True, is_anatomical=False))
     model.segments["LThigh"].add_marker(Marker(lthib, is_technical=True, is_anatomical=False))
     model.segments["LThigh"].add_marker(Marker(lthid, is_technical=True, is_anatomical=False))

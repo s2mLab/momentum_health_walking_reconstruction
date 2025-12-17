@@ -16,10 +16,32 @@ class DataMarkers:
         self._marker_names = list(marker_names)
         self._markers = markers
 
+        if len(self._markers.shape) == 2:
+            self._markers = self._markers[:, :, None]
+        if len(self._markers.shape) != 3:
+            raise ValueError(f"Markers array must be 2D or 3D, got shape {self._markers.shape}.")
+
+        if self._markers.shape[1] != len(self._marker_names):
+            raise ValueError(
+                f"Number of marker names ({len(self._marker_names)}) does not match number of markers ({self._markers.shape[1]})."
+            )
+        if self._markers.shape[0] != 3 and self._markers.shape[0] != 4:
+            raise ValueError(
+                f"Markers array first dimension must be 3 (XYZ) or 4 (XYZW), got {self._markers.shape[0]}."
+            )
+
+    @property
+    def marker_count(self) -> int:
+        return len(self._marker_names)
+
+    def __len__(self) -> int:
+        return self._markers.shape[2]
+
     def __getitem__(self, marker: str) -> str:
         marker_index = self._marker_names.index(marker)
         return self._markers[:, marker_index, :]
 
+    @property
     def marker_names(self) -> list[str]:
         return self._marker_names
 
@@ -44,12 +66,25 @@ class DataMarkers:
             data_dict[name] = self._markers[:, i, :]
         return BiobuddyData(data_dict)
 
+    def to_biorbd(self) -> list[np.ndarray]:
+        data = []
+        for i in range(len(self)):
+            data.append(self._markers[:3, :, i])
+        return data
+
+    def to_bioviz(self) -> np.ndarray:
+        return self._markers[:3, :, :]
+
+    def to_numpy(self) -> np.ndarray:
+        return self._markers
+
     @classmethod
     def from_c3d(cls, file_path: Path) -> "DataMarkers":
         c3d = ezc3d.c3d(file_path.as_posix())
 
         marker_names = c3d["parameters"]["POINT"]["LABELS"]["value"]
         markers = c3d["data"]["points"]
+        markers[:3, :, :] /= 1000.0  # Convert from mm to m
 
         instance = cls(marker_names=marker_names, markers=markers)
         return instance
