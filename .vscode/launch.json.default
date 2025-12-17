@@ -14,36 +14,10 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}",
                 "DATA_BASE_FOLDER": "<Path to your data folder>",
-                "RESULTS_BASE_FOLDER": "<Path to your result folder>",
                 "SUBJECT_NAMES": "comma,separated,subject,names",
-                "ANIMATE_MODEL": "<true | [false]>",
+                "RESULTS_BASE_FOLDER": "<Path to your result folder>",
+                "ANIMATE_MODELS": "<true | [false]>",
                 "OVERRIDE_EXISTING_MODEL": "<true | [false]>",
-            },
-            "cwd": "${workspaceFolder}/runner/"
-        },
-        {
-            "name": "C3D to CSV",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/runner/main_c3d_to_csv.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}",
-                "DATA_BASE_FOLDER": "<Path to your data folder>",
-            },
-            "cwd": "${workspaceFolder}/runner/"
-        },
-        {
-            "name": "Example Extract Header Info",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/runner/main_extract_header_info.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}",
-                "DATA_BASE_FOLDER": "<Path to your data folder>",
             },
             "cwd": "${workspaceFolder}/runner/"
         },
