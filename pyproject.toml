@@ -18,6 +18,7 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "biorbd",
     "biobuddy",
     "ezc3d", 
     "numpy",

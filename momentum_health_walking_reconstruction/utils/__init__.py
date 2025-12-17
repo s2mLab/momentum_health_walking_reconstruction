@@ -1,5 +1,5 @@
-from .nexus_markers import NexusMarkers
+from .data_markers import DataMarkers
 
 __all__ = [
-    NexusMarkers.__name__,
+    DataMarkers.__name__,
 ]

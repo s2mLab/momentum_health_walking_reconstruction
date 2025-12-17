@@ -16,7 +16,7 @@ from biobuddy import (
     BiomechanicalModelReal,
 )
 
-from ..utils.nexus_markers import NexusMarkers
+from ..utils.data_markers import DataMarkers
 
 _logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class Markers(Enum):
 
 def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) -> BiomechanicalModelReal:
     # --- Load all the required data files --- #
-    trials = {
+    trial_names = {
         "static": "*static.c3d",
         "left_hip_functionnal": "*func_lhip.c3d",
         "left_knee_functionnal": "*func_lknee.c3d",
@@ -84,70 +84,69 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
         "right_ankle_functionnal": "*func_rankle.c3d",
     }
 
-    for key, pattern in trials.items():
+    trials: dict[str, DataMarkers] = {}
+    for key, pattern in trial_names.items():
         files = list(calibration_folder.glob(pattern))
         if len(files) != 1:
             raise RuntimeError(f"Expected exactly one {key} file in {calibration_folder}, found {len(files)}.")
-        trials[key] = C3dData(files[0].as_posix())
+        trials[key] = DataMarkers.from_c3d(files[0]).filter(
+            expected_marker_names=tuple([m.value for m in Markers]), rename_markers=False
+        )
 
     # --- Find the full name of each marker --- #
-    static_trial = NexusMarkers(trials["static"], expected_marker_names=tuple(Markers))
+    static_trial = trials["static"]
 
     # Trunk
-    c7 = static_trial[Markers.C7]
-    c2 = static_trial[Markers.C2]
-    t6 = static_trial[Markers.T6]
-    t10 = static_trial[Markers.T10]
-    s1 = static_trial[Markers.S1]
-    s3 = static_trial[Markers.S3]
-    clav = static_trial[Markers.CLAV]
-    strn = static_trial[Markers.STRN]
+    c7 = Markers.C7.value
+    c2 = Markers.C2.value
+    t6 = Markers.T6.value
+    t10 = Markers.T10.value
+    s1 = Markers.S1.value
+    s3 = Markers.S3.value
+    clav = Markers.CLAV.value
+    strn = Markers.STRN.value
 
     # Hip
-    lpsi = static_trial[Markers.LPSI]
-    rpsi = static_trial[Markers.RPSI]
-    lasi = static_trial[Markers.LASI]
-    rasi = static_trial[Markers.RASI]
+    lpsi = Markers.LPSI.value
+    rpsi = Markers.RPSI.value
+    lasi = Markers.LASI.value
+    rasi = Markers.RASI.value
 
     # LThigh
-    lthi = static_trial[Markers.LTHI]
-    lthib = static_trial[Markers.LTHIB]
-    lthid = static_trial[Markers.LTHID]
-    lknee = static_trial[Markers.LKNEE]
-    lkneem = static_trial[Markers.LKNEEM]
-
+    lthi = Markers.LTHI.value
+    lthib = Markers.LTHIB.value
+    lthid = Markers.LTHID.value
+    lknee = Markers.LKNEE.value
+    lkneem = Markers.LKNEEM.value
     # LShank
-    ltib = static_trial[Markers.LTIB]
-    ltibf = static_trial[Markers.LTIBF]
-    ltibd = static_trial[Markers.LTIBD]
-    lank = static_trial[Markers.LANK]
-    lankm = static_trial[Markers.LANKM]
-
+    ltib = Markers.LTIB.value
+    ltibf = Markers.LTIBF.value
+    ltibd = Markers.LTIBD.value
+    lank = Markers.LANK.value
+    lankm = Markers.LANKM.value
     # LFoot
-    lhee = static_trial[Markers.LHEE]
-    lnav = static_trial[Markers.LNAV]
-    ltoe = static_trial[Markers.LTOE]
-    ltoe5 = static_trial[Markers.LTOE5]
+    lhee = Markers.LHEE.value
+    lnav = Markers.LNAV.value
+    ltoe = Markers.LTOE.value
+    ltoe5 = Markers.LTOE5.value
 
     # RThigh
-    rthi = static_trial[Markers.RTHI]
-    rthib = static_trial[Markers.RTHIB]
-    rthid = static_trial[Markers.RTHID]
-    rknee = static_trial[Markers.RKNEE]
-    rkneem = static_trial[Markers.RKNEEM]
-
+    rthi = Markers.RTHI.value
+    rthib = Markers.RTHIB.value
+    rthid = Markers.RTHID.value
+    rknee = Markers.RKNEE.value
+    rkneem = Markers.RKNEEM.value
     # RShank
-    rtib = static_trial[Markers.RTIB]
-    rtibf = static_trial[Markers.RTIBF]
-    rtibd = static_trial[Markers.RTIBD]
-    rank = static_trial[Markers.RANK]
-    rankm = static_trial[Markers.RANKM]
-
+    rtib = Markers.RTIB.value
+    rtibf = Markers.RTIBF.value
+    rtibd = Markers.RTIBD.value
+    rank = Markers.RANK.value
+    rankm = Markers.RANKM.value
     # RFoot
-    rhee = static_trial[Markers.RHEE]
-    rnav = static_trial[Markers.RNAV]
-    rtoe = static_trial[Markers.RTOE]
-    rtoe5 = static_trial[Markers.RTOE5]
+    rhee = Markers.RHEE.value
+    rnav = Markers.RNAV.value
+    rtoe = Markers.RTOE.value
+    rtoe5 = Markers.RTOE5.value
 
     # --- Generate the personalized kinematic model --- #
     model = BiomechanicalModel()
@@ -218,7 +217,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     lknee_mid = SegmentCoordinateSystemUtils.mean_markers([lknee, lkneem])
     lthi_origin = (
         SegmentCoordinateSystemUtils.score(
-            functional_data=trials["left_hip_functionnal"],
+            functional_data=trials["left_hip_functionnal"].to_biobuddy_data(),
             parent_marker_names=[lpsi, rpsi, lasi, rasi],
             child_marker_names=[lthi, lthib, lthid],
             visualize=False,
@@ -254,7 +253,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     ltib_axis = (
         SegmentCoordinateSystemUtils.sara(
             name=Axis.Name.X,
-            functional_data=trials["left_knee_functionnal"],
+            functional_data=trials["left_knee_functionnal"].to_biobuddy_data(),
             parent_marker_names=[ltibd, ltib, ltibf],  # Child and parent swapped to get correct axis direction
             child_marker_names=[lthib, lthid, lthi],
             visualize=False,
@@ -286,7 +285,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     # LFoot
     lfoot_origin = (
         SegmentCoordinateSystemUtils.score(
-            functional_data=trials["left_ankle_functionnal"],
+            functional_data=trials["left_ankle_functionnal"].to_biobuddy_data(),
             parent_marker_names=[ltib, ltibf, ltibd],
             child_marker_names=[lhee, lnav, ltoe, ltoe5],
             visualize=False,
@@ -317,7 +316,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     rknee_mid = SegmentCoordinateSystemUtils.mean_markers([rknee, rkneem])
     rthi_origin = (
         SegmentCoordinateSystemUtils.score(
-            functional_data=trials["right_hip_functionnal"],
+            functional_data=trials["right_hip_functionnal"].to_biobuddy_data(),
             parent_marker_names=[lpsi, rpsi, lasi, rasi],
             child_marker_names=[rthi, rthib, rthid],
             visualize=False,
@@ -352,7 +351,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     rtib_axis = (
         SegmentCoordinateSystemUtils.sara(
             name=Axis.Name.X,
-            functional_data=trials["right_knee_functionnal"],
+            functional_data=trials["right_knee_functionnal"].to_biobuddy_data(),
             parent_marker_names=[rthid, rthi, rthib],
             child_marker_names=[rtib, rtibf, rtibd],
             visualize=False,
@@ -384,7 +383,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     # RFoot
     rfoot_origin = (
         SegmentCoordinateSystemUtils.score(
-            functional_data=trials["right_ankle_functionnal"],
+            functional_data=trials["right_ankle_functionnal"].to_biobuddy_data(),
             parent_marker_names=[rtib, rtibf, rtibd],
             child_marker_names=[rhee, rnav, rtoe, rtoe5],
             visualize=False,
@@ -412,5 +411,5 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     model.segments["RFoot"].add_marker(Marker(rtoe5, is_technical=True, is_anatomical=False))
 
     _logger.info("Collapsing the model to real...")
-    model_real = model.to_real(trials["static"])
+    model_real = model.to_real(trials["static"].to_biobuddy_data())
     return model_real
