@@ -3,10 +3,11 @@ import logging
 from pathlib import Path
 
 from biobuddy import ViewAs
-from momentum_health_walking_reconstruction import generate_lower_body_model
+
+from ..models.lower_body import generate_lower_body_model
 
 
-def generate_models(
+def generate_all_models(
     data_base_folder: Path,
     subject_names: list[str],
     results_folder: Path,
