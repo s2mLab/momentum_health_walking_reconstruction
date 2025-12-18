@@ -19,7 +19,7 @@ def main():
         data_base_folder=Path(os.getenv("DATA_BASE_FOLDER")),
         subject_names=os.getenv("SUBJECT_NAMES").split(","),
         results_folder=Path(os.getenv("RESULTS_BASE_FOLDER")),
-        override_existing_model=os.getenv("OVERRIDE_EXISTING_MODEL") == "true",
+        override_existing_models=os.getenv("OVERRIDE_EXISTING_MODELS") == "true",
         animate_models=os.getenv("ANIMATE_MODELS") == "true",
     )
 

@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Iterable
 
 import biobuddy
+import biorbd
 import ezc3d
 import numpy as np
 
@@ -60,7 +61,7 @@ class DataMarkers:
 
         return DataMarkers(marker_names=new_data.keys(), markers=np.concatenate(list(new_data.values()), axis=1))
 
-    def to_biobuddy_data(self) -> BiobuddyData:
+    def to_biobuddy(self) -> BiobuddyData:
         data_dict: dict[str, np.ndarray] = {}
         for i, name in enumerate(self._marker_names):
             data_dict[name] = self._markers[:, i, :]

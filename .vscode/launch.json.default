@@ -17,7 +17,7 @@
                 "SUBJECT_NAMES": "comma,separated,subject,names",
                 "RESULTS_BASE_FOLDER": "<Path to your result folder>",
                 "ANIMATE_MODELS": "<true | [false]>",
-                "OVERRIDE_EXISTING_MODEL": "<true | [false]>",
+                "OVERRIDE_EXISTING_MODELS": "<true | [false]>",
             },
             "cwd": "${workspaceFolder}/runner/"
         },
@@ -35,7 +35,7 @@
                 "SUBJECT_NAMES": "comma,separated,subject,names",
                 "RESULTS_BASE_FOLDER": "<Path to your result folder>",
                 "ANIMATE_MODELS": "<true | [false]>",
-                "OVERRIDE_EXISTING_MODEL": "<true | [false]>",
+                "OVERRIDE_EXISTING_TRIALS": "<true | [false]>",
             },
             "cwd": "${workspaceFolder}/runner/"
         },

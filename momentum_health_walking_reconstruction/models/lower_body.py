@@ -217,7 +217,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     lknee_mid = SegmentCoordinateSystemUtils.mean_markers([lknee, lkneem])
     lthi_origin = (
         SegmentCoordinateSystemUtils.score(
-            functional_data=trials["left_hip_functionnal"].to_biobuddy_data(),
+            functional_data=trials["left_hip_functionnal"].to_biobuddy(),
             parent_marker_names=[lpsi, rpsi, lasi, rasi],
             child_marker_names=[lthi, lthib, lthid],
             visualize=False,
@@ -252,7 +252,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     ltib_axis = (
         SegmentCoordinateSystemUtils.sara(
             name=Axis.Name.X,
-            functional_data=trials["left_knee_functionnal"].to_biobuddy_data(),
+            functional_data=trials["left_knee_functionnal"].to_biobuddy(),
             parent_marker_names=[ltibd, ltib, ltibf],  # Child and parent swapped to get correct axis direction
             child_marker_names=[lthib, lthid, lthi],
             visualize=False,
@@ -284,7 +284,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     # LFoot
     lfoot_origin = (
         SegmentCoordinateSystemUtils.score(
-            functional_data=trials["left_ankle_functionnal"].to_biobuddy_data(),
+            functional_data=trials["left_ankle_functionnal"].to_biobuddy(),
             parent_marker_names=[ltib, ltibf, ltibd],
             child_marker_names=[lhee, lnav, ltoe, ltoe5],
             visualize=False,
@@ -315,7 +315,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     rknee_mid = SegmentCoordinateSystemUtils.mean_markers([rknee, rkneem])
     rthi_origin = (
         SegmentCoordinateSystemUtils.score(
-            functional_data=trials["right_hip_functionnal"].to_biobuddy_data(),
+            functional_data=trials["right_hip_functionnal"].to_biobuddy(),
             parent_marker_names=[lpsi, rpsi, lasi, rasi],
             child_marker_names=[rthi, rthib, rthid],
             visualize=False,
@@ -350,7 +350,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     rtib_axis = (
         SegmentCoordinateSystemUtils.sara(
             name=Axis.Name.X,
-            functional_data=trials["right_knee_functionnal"].to_biobuddy_data(),
+            functional_data=trials["right_knee_functionnal"].to_biobuddy(),
             parent_marker_names=[rthid, rthi, rthib],
             child_marker_names=[rtib, rtibf, rtibd],
             visualize=False,
@@ -382,7 +382,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     # RFoot
     rfoot_origin = (
         SegmentCoordinateSystemUtils.score(
-            functional_data=trials["right_ankle_functionnal"].to_biobuddy_data(),
+            functional_data=trials["right_ankle_functionnal"].to_biobuddy(),
             parent_marker_names=[rtib, rtibf, rtibd],
             child_marker_names=[rhee, rnav, rtoe, rtoe5],
             visualize=False,
@@ -410,5 +410,5 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     model.segments["RFoot"].add_marker(Marker(rtoe5, is_technical=True, is_anatomical=False))
 
     _logger.info("Collapsing the model to real...")
-    model_real = model.to_real(trials["static"].to_biobuddy_data())
+    model_real = model.to_real(trials["static"].to_biobuddy())
     return model_real

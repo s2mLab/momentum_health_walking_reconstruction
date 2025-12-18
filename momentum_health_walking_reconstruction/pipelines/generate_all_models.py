@@ -12,7 +12,7 @@ def generate_all_models(
     subject_names: list[str],
     results_folder: Path,
     output_model_name: str = "lower_body.bioMod",
-    override_existing_model: bool = False,
+    override_existing_models: bool = False,
     animate_models: bool = False,
 ):
     _logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ def generate_all_models(
         calibration_folder = data_base_folder / subject / "calibration_files"
         output_model_filepath = results_folder / subject / output_model_name
 
-        if not override_existing_model and output_model_filepath.exists():
+        if not override_existing_models and output_model_filepath.exists():
             _logger.info(f"Model file already exists and override is set to False, skipping.")
             continue
         model = generate_lower_body_model(calibration_folder=calibration_folder, use_score=True)
