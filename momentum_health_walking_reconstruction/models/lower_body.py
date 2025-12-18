@@ -378,7 +378,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
         Segment(
             name="LThigh",
             parent_name="Pelvis",
-            rotations=Rotations.XYZ,
+            rotations=Rotations.XZY,
             inertia_parameters=de_leva_table[SegmentName.THIGH],
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=lthi_origin,
@@ -454,7 +454,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
                 origin=lfoot_origin,
                 first_axis=Axis(Axis.Name.Z, start=ltoe, end=lhee),
                 second_axis=Axis(Axis.Name.X, start=lank, end=lankm),
-                axis_to_keep=Axis.Name.X,
+                axis_to_keep=Axis.Name.Z,
             ),
             mesh=Mesh((lhee, lnav, ltoe, lhee, ltoe, ltoe5, lhee, ltoe5, lnav), is_local=False),
         )
@@ -480,7 +480,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
         Segment(
             name="RThigh",
             parent_name="Pelvis",
-            rotations=Rotations.XYZ,
+            rotations=Rotations.XZY,
             inertia_parameters=de_leva_table[SegmentName.THIGH],
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=rthi_origin,
@@ -556,7 +556,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
                 origin=rfoot_origin,
                 first_axis=Axis(Axis.Name.Z, start=rtoe, end=rhee),
                 second_axis=Axis(Axis.Name.X, start=rankm, end=rank),
-                axis_to_keep=Axis.Name.X,
+                axis_to_keep=Axis.Name.Z,
             ),
             mesh=Mesh((rhee, rnav, rtoe, rhee, rtoe, rtoe5, rhee, rtoe5, rnav), is_local=False),
         )
