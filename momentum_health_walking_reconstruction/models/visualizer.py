@@ -27,25 +27,27 @@ class Visualizer:
         self._viz.set_q(q, refresh_window=False)
         self._viz.set_experimental_markers(Markers(markers[:, :, None]), refresh_window=True)
 
-    def load_movement(self, kinematics_path: Path, markers_path: Path):
+    def load_movement(self, kinematics_path: Path = None, markers_path: Path = None):
         # Get the model
         model = self._viz.model
 
-        # Load experimental markers
-        self._viz.experimental_markers = Markers.from_c3d(markers_path)[:, : model.nbMarkers(), :]
-        if self._viz.experimental_markers.units == "mm":
-            self._viz.experimental_markers = self._viz.experimental_markers * 0.001
+        if markers_path is not None:
+            # Load experimental markers
+            self._viz.experimental_markers = Markers.from_c3d(markers_path)[:, : model.nbMarkers(), :]
+            if self._viz.experimental_markers.units == "mm":
+                self._viz.experimental_markers = self._viz.experimental_markers * 0.001
 
-        model_marker_names = [marker.name().to_string() for marker in model.markers()]
-        exp_marker_names = [name.split(":")[1] for name in self._viz.experimental_markers.channel.data]
-        self._viz.virtual_to_experimental_markers_indices = [
-            model_marker_names.index(name) if name in model_marker_names else None for name in exp_marker_names
-        ]
-        self._viz.show_experimental_markers = True
+            model_marker_names = [marker.name().to_string() for marker in model.markers()]
+            exp_marker_names = [name.split(":")[1] for name in self._viz.experimental_markers.channel.data]
+            self._viz.virtual_to_experimental_markers_indices = [
+                model_marker_names.index(name) if name in model_marker_names else None for name in exp_marker_names
+            ]
+            self._viz.show_experimental_markers = True
 
         # Load the kinematics
-        q = np.load(kinematics_path.as_posix())
-        self._viz.load_movement(q, auto_start=False)
+        if kinematics_path is not None:
+            q = np.load(kinematics_path.as_posix())
+            self._viz.load_movement(q, auto_start=False)
 
         # Set the first frame
         self._viz._set_movement_slider()

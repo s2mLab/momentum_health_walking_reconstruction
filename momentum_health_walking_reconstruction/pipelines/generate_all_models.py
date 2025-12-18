@@ -5,6 +5,7 @@ from pathlib import Path
 from biobuddy import ViewAs
 
 from ..models.lower_body import generate_lower_body_model
+from ..models.visualizer import Visualizer
 
 
 def generate_all_models(
@@ -17,6 +18,7 @@ def generate_all_models(
 ):
     _logger = logging.getLogger(__name__)
 
+    visualizer = None
     for subject in subject_names:
         _logger.info(f"Generating model for subject {subject}...")
 
@@ -33,4 +35,13 @@ def generate_all_models(
         model.to_biomod(output_model_filepath)
 
         if animate_models:
-            model.animate(view_as=ViewAs.BIORBD_BIOVIZ, model_path=output_model_filepath.as_posix())
+            if visualizer is None:
+                visualizer = Visualizer(model_path=output_model_filepath)
+            else:
+                visualizer.swap_model(model_path=output_model_filepath)
+
+            static_path = list(calibration_folder.glob("*static.c3d"))[0]
+            visualizer.load_movement(markers_path=static_path)
+
+            # Wait until the user press "Enter" in the console to go to the next trial
+            input("Press Enter to continue to the next trial...")
