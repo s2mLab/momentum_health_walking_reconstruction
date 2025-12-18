@@ -58,7 +58,7 @@ def _qld_inverse_kinematics(model: biorbd.Biorbd, data: DataMarkers, visualizer:
         q_init = results[-1]
 
         if visualizer is not None:
-            visualizer.update_all(q=q_init, markers=frame)
+            visualizer.update_frame(q=q_init, markers=frame)
 
     return np.array(results).T
 
@@ -80,19 +80,24 @@ def _kalman_inverse_kinematics(model: biorbd.Biorbd, data: DataMarkers, visualiz
     np.ndarray
         The estimated generalized coordinates.
     """
+    # Find a decent first frame
+    q_init = _qld_inverse_kinematics(
+        model=model, data=DataMarkers(data.marker_names, data.to_numpy()[:, :, 0]), visualizer=None
+    )[:, 0]
+
     technical_indices = [i for i, marker in enumerate(model.markers) if marker.is_technical]
     reduced_marker_names = [model.markers[i].name for i in technical_indices]
     data_technical_markers = DataMarkers(reduced_marker_names, data.to_numpy()[:, technical_indices, :])
 
     frame_count = len(data_technical_markers)
-    kalman = biorbd.ExtendedKalmanFilterMarkers(model, frequency=100)
+    kalman = biorbd.ExtendedKalmanFilterMarkers(model, frequency=100, q_init=q_init)
     q_recons = np.ndarray((model.nb_q, frame_count))
     all_markers = data_technical_markers.to_biorbd()
     for i, (q_i, _, _) in enumerate(kalman.reconstruct_frames(all_markers=all_markers)):
         q_recons[:, i] = q_i
 
         if visualizer is not None:
-            visualizer.update_all(q=q_recons[:, i], markers=all_markers[i])
+            visualizer.update_frame(q=q_recons[:, i], markers=all_markers[i])
 
     return q_recons
 

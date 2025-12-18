@@ -23,6 +23,7 @@ dependencies = [
     "biobuddy",
     "ezc3d", 
     "numpy",
+    "pyomeca",
 ]
 
 [project.optional-dependencies]

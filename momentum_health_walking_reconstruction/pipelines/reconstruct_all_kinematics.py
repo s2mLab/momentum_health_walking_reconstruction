@@ -13,22 +13,28 @@ def reconstruct_all_kinematics(
     models_base_folder: Path,
     subject_names: list[str],
     results_folder: Path,
-    output_model_name: str = "lower_body.bioMod",
+    model_name: str = "lower_body.bioMod",
     override_existing_trials: bool = False,
     animate_models: bool = False,
+    reconstruction_method=ReconstructionMethod.KALMAN,
 ):
     _logger = logging.getLogger(__name__)
 
+    visualizer = None
     for subject in subject_names:
         _logger.info(f"Reconstructing kinematics for subject {subject}...")
 
         # Prepare paths
         data_folder = data_base_folder / subject
-        model_path = models_base_folder / subject / output_model_name
+        model_path = models_base_folder / subject / model_name
         result_folder = results_folder / subject
         trial_files = data_folder.glob("*.c3d")
 
-        visualizer = Visualizer(model_path=model_path) if animate_models else None
+        if animate_models:
+            if visualizer is None:
+                visualizer = Visualizer(model_path=model_path)
+            else:
+                visualizer.swap_model(model_path=model_path)
 
         for trial in trial_files:
             trial_name = trial.stem
@@ -43,8 +49,8 @@ def reconstruct_all_kinematics(
             q = kinematics_reconstruction(
                 data_path=trial,
                 model_path=model_path,
-                visualizer=visualizer,
-                reconstruction_method=ReconstructionMethod.KALMAN,
+                visualizer=visualizer if animate_models and reconstruction_method == ReconstructionMethod.QLD else None,
+                reconstruction_method=reconstruction_method,
             )
 
             # Save results
@@ -52,3 +58,10 @@ def reconstruct_all_kinematics(
 
             # Save the kinematics data
             np.save(output_filepath.as_posix(), q)
+
+            # Animate the result if needed
+            if animate_models:
+                visualizer.load_movement(kinematics_path=output_filepath, markers_path=trial)
+
+                # Wait until the user press "Enter" in the console to go to the next trial
+                input("Press Enter to continue to the next trial...")

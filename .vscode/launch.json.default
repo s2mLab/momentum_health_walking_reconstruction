@@ -39,5 +39,21 @@
             },
             "cwd": "${workspaceFolder}/runner/"
         },
+        {
+            "name": "Visualize Reconstruction",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/runner/main_visualize_reconstruction.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "DATA_BASE_FOLDER": "<Path to your data folder>",
+                "MODELS_BASE_FOLDER": "<Path to your models folder>",
+                "SUBJECT_NAMES": "comma,separated,subject,names",
+                "RESULTS_BASE_FOLDER": "<Path to your result folder>",
+            },
+            "cwd": "${workspaceFolder}/runner/"
+        },
     ]
 }
