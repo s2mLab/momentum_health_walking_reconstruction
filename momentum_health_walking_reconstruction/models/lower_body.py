@@ -5,7 +5,6 @@ from pathlib import Path
 from biobuddy import (
     Axis,
     BiomechanicalModel,
-    C3dData,
     Marker,
     Mesh,
     Segment,
@@ -92,9 +91,6 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
         trials[key] = DataMarkers.from_c3d(files[0]).filter(
             expected_marker_names=tuple([m.value for m in Markers]), rename_markers=False
         )
-
-    # --- Find the full name of each marker --- #
-    static_trial = trials["static"]
 
     # Trunk
     c7 = Markers.C7.value
