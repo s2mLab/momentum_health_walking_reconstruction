@@ -13,6 +13,9 @@ from biobuddy import (
     Rotations,
     SegmentCoordinateSystemUtils,
     BiomechanicalModelReal,
+    DeLevaTable,
+    Sex,
+    SegmentName,
 )
 
 from ..utils.data_markers import DataMarkers
@@ -20,7 +23,31 @@ from ..utils.data_markers import DataMarkers
 _logger = logging.getLogger(__name__)
 
 
+def _compute_mean_marker_height(trial: DataMarkers, marker_names: list[str]) -> float:
+    return float(trial.filter(expected_marker_names=marker_names).to_numpy().mean(axis=2).mean(axis=1)[2])
+
+
+def _compute_mean_length_between_markers(trial: DataMarkers, marker_name_1: str, marker_name_2: str) -> float:
+    markers = trial.filter(expected_marker_names=[marker_name_1, marker_name_2]).to_numpy()[:3, :, :]
+    return float((((markers[:, 0, :] - markers[:, 1, :]) ** 2).sum(axis=0) ** 0.5).mean())
+
+
 class Markers(Enum):
+    LFHD = "LFHD"
+    RFHD = "RFHD"
+    LBHD = "LBHD"
+    RBHD = "RBHD"
+
+    LSHO = "LSHO"
+    LELB = "LELB"
+    LWRA = "LWRA"
+    LWRB = "LWRB"
+    LFIN = "LFIN"
+    RSHO = "RSHO"
+    RELB = "RELB"
+    RWRA = "RWRA"
+    RWRB = "RWRB"
+    RFIN = "RFIN"
 
     C7 = "C7"
     C2 = "C2"
@@ -92,6 +119,24 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             expected_marker_names=tuple([m.value for m in Markers]), rename_markers=False
         )
 
+    # Head
+    lfhd = Markers.LFHD.value
+    rfhd = Markers.RFHD.value
+    lbhd = Markers.LBHD.value
+    rbhd = Markers.RBHD.value
+
+    # Arms
+    lsho = Markers.LSHO.value
+    lelb = Markers.LELB.value
+    lwra = Markers.LWRA.value
+    lwrb = Markers.LWRB.value
+    lfin = Markers.LFIN.value
+    rsho = Markers.RSHO.value
+    relb = Markers.RELB.value
+    rwra = Markers.RWRA.value
+    rwrb = Markers.RWRB.value
+    rfin = Markers.RFIN.value
+
     # Trunk
     c7 = Markers.C7.value
     c2 = Markers.C2.value
@@ -147,6 +192,33 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     # --- Generate the personalized kinematic model --- #
     model = BiomechanicalModel()
 
+    # --- Dynamic model --- #
+    height = _compute_mean_marker_height(trials["static"], [lfhd, rfhd, lbhd, rbhd])
+    de_leva_table = DeLevaTable(total_mass=100, sex=Sex.MALE)
+    de_leva_table.from_measurements(
+        total_height=height,
+        ankle_height=_compute_mean_marker_height(trials["static"], [rank, rankm, lank, lankm]),
+        knee_height=_compute_mean_marker_height(trials["static"], [rknee, rkneem, lknee, lkneem]),
+        hip_height=_compute_mean_marker_height(trials["static"], [lthi, rthi]),
+        shoulder_height=_compute_mean_marker_height(trials["static"], [lsho, rsho]),
+        finger_span=_compute_mean_length_between_markers(trials["static"], lfin, rfin),
+        wrist_span=_compute_mean_length_between_markers(trials["static"], lwra, rwra),
+        elbow_span=_compute_mean_length_between_markers(trials["static"], lelb, relb),
+        shoulder_span=_compute_mean_length_between_markers(trials["static"], lsho, rsho),
+        foot_length=_compute_mean_length_between_markers(trials["static"], lhee, ltoe),
+        hip_width=_compute_mean_length_between_markers(trials["static"], lthi, rthi),
+    )
+    # Change main axis of the foot to Z
+    trunk_center_of_mass_function = de_leva_table[SegmentName.TRUNK].center_of_mass
+    de_leva_table[SegmentName.TRUNK].center_of_mass = lambda m, bio: [
+        0,
+        0,
+        trunk_center_of_mass_function(m, bio)[2]
+        - (m.values["CLAV"].mean(axis=1)[2] - bio.segments["Pelvis"].segment_coordinate_system.scs.translation[2]),
+    ]
+    foot_center_of_mass_function = de_leva_table[SegmentName.FOOT].center_of_mass
+    de_leva_table[SegmentName.FOOT].center_of_mass = lambda m, bio: -1 * foot_center_of_mass_function(m, bio)[[2, 1, 0]]
+
     # Hip
     model.add_segment(
         Segment(
@@ -183,6 +255,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             parent_name="Pelvis",
             translations=Translations.XYZ,
             rotations=Rotations.XYZ,
+            inertia_parameters=de_leva_table[SegmentName.TRUNK],
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=clav,
                 first_axis=Axis(
@@ -209,6 +282,82 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
     model.segments["Trunk"].add_marker(Marker(clav, is_technical=True, is_anatomical=True))
     model.segments["Trunk"].add_marker(Marker(strn, is_technical=True, is_anatomical=True))
 
+    # Left arm
+    model.add_segment(
+        Segment(
+            name="LUpperArm",
+            parent_name="Trunk",
+            translations=Translations.XYZ,
+            rotations=Rotations.XY,
+            inertia_parameters=de_leva_table[SegmentName.UPPER_ARM],
+            segment_coordinate_system=SegmentCoordinateSystem(
+                origin=lsho,
+                first_axis=Axis(Axis.Name.Z, start=lelb, end=lsho),
+                second_axis=Axis(Axis.Name.X, start=lwrb, end=lwra),
+                axis_to_keep=Axis.Name.Z,
+            ),
+            mesh=Mesh((lsho, lelb), is_local=False),
+        )
+    )
+    model.segments["LUpperArm"].add_marker(Marker(lsho, is_technical=True, is_anatomical=False))
+    model.segments["LUpperArm"].add_marker(Marker(lelb, is_technical=True, is_anatomical=False))
+
+    model.add_segment(
+        Segment(
+            name="LLowerArm",
+            parent_name="LUpperArm",
+            rotations=Rotations.XYZ,
+            inertia_parameters=de_leva_table[SegmentName.LOWER_ARM],
+            segment_coordinate_system=SegmentCoordinateSystem(
+                origin=lelb,
+                first_axis=Axis(Axis.Name.Z, start=SegmentCoordinateSystemUtils.mean_markers([lwra, lwrb]), end=lelb),
+                second_axis=Axis(Axis.Name.X, start=lwrb, end=lwra),
+                axis_to_keep=Axis.Name.Z,
+            ),
+            mesh=Mesh((lelb, lwra, lwrb, lelb), is_local=False),
+        )
+    )
+    model.segments["LLowerArm"].add_marker(Marker(lwra, is_technical=True, is_anatomical=False))
+    model.segments["LLowerArm"].add_marker(Marker(lwrb, is_technical=True, is_anatomical=False))
+
+    # Right arm
+    model.add_segment(
+        Segment(
+            name="RUpperArm",
+            parent_name="Trunk",
+            translations=Translations.XYZ,
+            rotations=Rotations.XY,
+            inertia_parameters=de_leva_table[SegmentName.UPPER_ARM],
+            segment_coordinate_system=SegmentCoordinateSystem(
+                origin=rsho,
+                first_axis=Axis(Axis.Name.Z, start=relb, end=rsho),
+                second_axis=Axis(Axis.Name.X, start=rwrb, end=rwra),
+                axis_to_keep=Axis.Name.Z,
+            ),
+            mesh=Mesh((rsho, relb), is_local=False),
+        )
+    )
+    model.segments["RUpperArm"].add_marker(Marker(rsho, is_technical=True, is_anatomical=False))
+    model.segments["RUpperArm"].add_marker(Marker(relb, is_technical=True, is_anatomical=False))
+
+    model.add_segment(
+        Segment(
+            name="RLowerArm",
+            parent_name="RUpperArm",
+            rotations=Rotations.XYZ,
+            inertia_parameters=de_leva_table[SegmentName.LOWER_ARM],
+            segment_coordinate_system=SegmentCoordinateSystem(
+                origin=relb,
+                first_axis=Axis(Axis.Name.Z, start=SegmentCoordinateSystemUtils.mean_markers([rwra, rwrb]), end=relb),
+                second_axis=Axis(Axis.Name.X, start=rwrb, end=rwra),
+                axis_to_keep=Axis.Name.Z,
+            ),
+            mesh=Mesh((relb, rwra, rwrb, relb), is_local=False),
+        )
+    )
+    model.segments["RLowerArm"].add_marker(Marker(rwra, is_technical=True, is_anatomical=False))
+    model.segments["RLowerArm"].add_marker(Marker(rwrb, is_technical=True, is_anatomical=False))
+
     # LThigh
     lknee_mid = SegmentCoordinateSystemUtils.mean_markers([lknee, lkneem])
     lthi_origin = (
@@ -226,6 +375,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             name="LThigh",
             parent_name="Pelvis",
             rotations=Rotations.XYZ,
+            inertia_parameters=de_leva_table[SegmentName.THIGH],
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=lthi_origin,
                 first_axis=Axis(name=Axis.Name.Z, start=lknee_mid, end=lthi_origin),
@@ -262,6 +412,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             name="LShank",
             parent_name="LThigh",
             rotations=Rotations.X,
+            inertia_parameters=de_leva_table[SegmentName.SHANK],
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=ltib_axis.start,
                 first_axis=Axis(name=Axis.Name.Z, start=lank_mid, end=ltib_axis.start),
@@ -293,6 +444,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             name="LFoot",
             parent_name="LShank",
             rotations=Rotations.XZ,
+            inertia_parameters=de_leva_table[SegmentName.FOOT],
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=lfoot_origin,
                 first_axis=Axis(Axis.Name.Z, start=ltoe, end=lhee),
@@ -324,6 +476,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             name="RThigh",
             parent_name="Pelvis",
             rotations=Rotations.XYZ,
+            inertia_parameters=de_leva_table[SegmentName.THIGH],
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=rthi_origin,
                 first_axis=Axis(name=Axis.Name.Z, start=rknee_mid, end=rthi_origin),
@@ -360,6 +513,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             name="RShank",
             parent_name="RThigh",
             rotations=Rotations.X,
+            inertia_parameters=de_leva_table[SegmentName.SHANK],
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=rtib_axis.start,
                 first_axis=Axis(name=Axis.Name.Z, start=rank_mid, end=rtib_axis.start),
@@ -391,6 +545,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             name="RFoot",
             parent_name="RShank",
             rotations=Rotations.XZ,
+            inertia_parameters=de_leva_table[SegmentName.FOOT],
             segment_coordinate_system=SegmentCoordinateSystem(
                 origin=rfoot_origin,
                 first_axis=Axis(Axis.Name.Z, start=rtoe, end=rhee),

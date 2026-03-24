@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                "PYTHONPATH": "${workspaceFolder}",
+                "PYTHONPATH": "${workspaceFolder}:< BIOBUDDY_PATH>",
                 "DATA_BASE_FOLDER": "<Path to your data folder>",
                 "SUBJECT_NAMES": "comma,separated,subject,names",
                 "RESULTS_BASE_FOLDER": "<Path to your result folder>",
@@ -54,6 +54,18 @@
                 "RESULTS_BASE_FOLDER": "<Path to your result folder>",
             },
             "cwd": "${workspaceFolder}/runner/"
+        },
+        {
+            "name": "Models comparison",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/runner/main_models_comparison.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}/runner/",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:< BIOBUDDY_PATH>",
+            },
         },
     ]
 }
