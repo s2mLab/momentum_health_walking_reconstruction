@@ -17,6 +17,7 @@ from biobuddy import (
     Sex,
     SegmentName,
 )
+import numpy as np
 
 from ..utils.data_markers import DataMarkers
 
@@ -24,12 +25,12 @@ _logger = logging.getLogger(__name__)
 
 
 def _compute_mean_marker_height(trial: DataMarkers, marker_names: list[str]) -> float:
-    return float(trial.filter(expected_marker_names=marker_names).to_numpy().mean(axis=2).mean(axis=1)[2])
+    return float(np.nanmean(trial.filter(expected_marker_names=marker_names).to_numpy(), axis=2).mean(axis=1)[2])
 
 
 def _compute_mean_length_between_markers(trial: DataMarkers, marker_name_1: str, marker_name_2: str) -> float:
     markers = trial.filter(expected_marker_names=[marker_name_1, marker_name_2]).to_numpy()[:3, :, :]
-    return float((((markers[:, 0, :] - markers[:, 1, :]) ** 2).sum(axis=0) ** 0.5).mean())
+    return float(np.nanmean((((markers[:, 0, :] - markers[:, 1, :]) ** 2).sum(axis=0) ** 0.5)))
 
 
 class Markers(Enum):
@@ -214,7 +215,10 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
         0,
         0,
         trunk_center_of_mass_function(m, bio)[2]
-        - (m.values["CLAV"].mean(axis=1)[2] - bio.segments["Pelvis"].segment_coordinate_system.scs.translation[2]),
+        - (
+            np.nanmean(m.values["CLAV"], axis=1)[2]
+            - bio.segments["Pelvis"].segment_coordinate_system.scs.translation[2]
+        ),
     ]
     foot_center_of_mass_function = de_leva_table[SegmentName.FOOT].center_of_mass
     de_leva_table[SegmentName.FOOT].center_of_mass = lambda m, bio: -1 * foot_center_of_mass_function(m, bio)[[2, 1, 0]]
@@ -401,6 +405,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             functional_data=trials["left_knee_functionnal"].to_biobuddy(),
             parent_marker_names=[ltibd, ltib, ltibf],  # Child and parent swapped to get correct axis direction
             child_marker_names=[lthib, lthid, lthi],
+            origin_marker=Marker("LKNEE_MID", lknee_mid),
             visualize=False,
         )
         if use_score
@@ -502,6 +507,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             functional_data=trials["right_knee_functionnal"].to_biobuddy(),
             parent_marker_names=[rthid, rthi, rthib],
             child_marker_names=[rtib, rtibf, rtibd],
+            origin_marker=Marker("RKNEE_MID", rknee_mid),
             visualize=False,
         )
         if use_score
