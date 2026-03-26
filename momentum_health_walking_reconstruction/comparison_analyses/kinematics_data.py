@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 
-
 import biorbd
 import ezc3d
 from matplotlib import pyplot as plt
@@ -11,6 +10,13 @@ import pygltflib
 from scipy.spatial.transform import Rotation
 from tqdm import tqdm
 from scipy.signal import correlate
+
+from ..utils.math import derivative
+
+
+class TrialType(Enum):
+    GAIT = auto()
+    SWAY = auto()
 
 
 class Side(Enum):
@@ -33,12 +39,17 @@ class Point(Enum):
 
 
 class KinematicsData(ABC):
-    def __init__(self, original_frame_rate: float, last_frame_index: int):
+    def __init__(self, original_frame_rate: float, last_frame_index: int, trial_type: TrialType):
         self._original_frame_rate = original_frame_rate
         self._resample_ratio = 1
         self._initial_frame_index = 0
         self._original_last_frame_index = last_frame_index
         self._last_frame_index = last_frame_index
+        self._trial_type = trial_type
+
+    @property
+    def trial_type(self) -> TrialType:
+        return self._trial_type
 
     def time_vector(self, resampled: bool = True) -> np.ndarray:
         full_time_vector = np.arange(self.frame_count(resampled=False)) / self.frame_rate(resampled=False)
@@ -46,7 +57,7 @@ class KinematicsData(ABC):
 
     def frame_count(self, resampled: bool = True) -> int:
         return (
-            self.last_frame_index(resampled=resampled) - self.initial_frame_index(resampled=resampled)
+            self.last_frame_index(resampled=False) - self.initial_frame_index(resampled=False)
         ) // self.resample_ratio(resampled=resampled)
 
     def frame_rate(self, resampled: bool = True) -> float:
@@ -101,17 +112,12 @@ class KinematicsData(ABC):
     def points(self, point: Point, resampled: bool = True) -> np.ndarray:
         """
         Returns:
-            A (N, 3) array containing the 3D coordinates of the specified point across the frames.
+            A (3, N) array containing the 3D coordinates of the specified point across the frames.
         """
         pass
 
     def points_velocity(self, point: Point, resampled: bool = True) -> np.ndarray:
-        return np.gradient(
-            self.points(point, resampled=resampled),
-            1 / self.frame_rate(resampled=resampled),
-            axis=1,
-            edge_order=2,
-        )
+        return derivative(self.points(point, resampled=resampled), frame_rate=self.frame_rate(resampled=resampled))
 
     @staticmethod
     def perform_align_kinematics_data(
@@ -175,7 +181,7 @@ class KinematicsData(ABC):
 
 
 class BiorbdKinematicsData(KinematicsData):
-    def __init__(self, model: biorbd.Biorbd, c3d_data: ezc3d.c3d, kinematics: np.ndarray):
+    def __init__(self, model: biorbd.Biorbd, c3d_data: ezc3d.c3d, kinematics: np.ndarray, trial_type: TrialType):
         self._model = model
 
         # Load the inhouse model data along with the data used to compute the kinematics
@@ -185,6 +191,7 @@ class BiorbdKinematicsData(KinematicsData):
         super().__init__(
             original_frame_rate=self._c3d.header["points"]["frame_rate"],
             last_frame_index=kinematics.shape[1],
+            trial_type=trial_type,
         )
 
     def _get_kinematics(self, resampled: bool = True) -> np.ndarray:
@@ -220,30 +227,30 @@ class BiorbdKinematicsData(KinematicsData):
             return np.array([self._model.center_of_mass(q[:, index]) for index in range(frame_count)]).T
         elif point == Point.LEFT_HEEL:
             left_heel_index = self._find_marker_index(self.point_names, suffix="LHEE")
-            return self._get_points_data(resampled=resampled)[:3, left_heel_index, :].T
+            return self._get_points_data(resampled=resampled)[:3, left_heel_index, :]
         elif point == Point.RIGHT_HEEL:
             right_heel_index = self._find_marker_index(self.point_names, suffix="RHEE")
-            return self._get_points_data(resampled=resampled)[:3, right_heel_index, :].T
+            return self._get_points_data(resampled=resampled)[:3, right_heel_index, :]
         elif point == Point.LEFT_TOE:
             left_toe_index = self._find_marker_index(self.point_names, suffix="LTOE5")
-            return self._get_points_data(resampled=resampled)[:3, left_toe_index, :].T
+            return self._get_points_data(resampled=resampled)[:3, left_toe_index, :]
         elif point == Point.RIGHT_TOE:
             right_toe_index = self._find_marker_index(self.point_names, suffix="RTOE5")
-            return self._get_points_data(resampled=resampled)[:3, right_toe_index, :].T
+            return self._get_points_data(resampled=resampled)[:3, right_toe_index, :]
         else:
             raise ValueError(
                 "Unsupported point. Only CENTER_OF_MASS, LEFT_HEEL, RIGHT_HEEL, LEFT_TOE, and RIGHT_TOE are currently supported."
             )
 
     @classmethod
-    def from_file(cls, model_path: str, c3d_path: str, kinematics_path: str):
+    def from_file(cls, model_path: str, c3d_path: str, kinematics_path: str, trial_type: TrialType):
         model = biorbd.Biorbd(model_path)
 
         # Load the inhouse model data along with the data used to compute the kinematics
         c3d_data = ezc3d.c3d(c3d_path)
         kinematics = np.load(kinematics_path, allow_pickle=True)
 
-        return cls(model=model, c3d_data=c3d_data, kinematics=kinematics)
+        return cls(model=model, c3d_data=c3d_data, kinematics=kinematics, trial_type=trial_type)
 
     @staticmethod
     def _find_marker_index(marker_names: list[str], suffix: str) -> int:
@@ -255,11 +262,12 @@ class BiorbdKinematicsData(KinematicsData):
 
 
 class GlbKinematicsData(KinematicsData):
-    def __init__(self, data: dict[str, np.ndarray]):
+    def __init__(self, data: dict[str, np.ndarray], trial_type: TrialType):
         self._data = data
         super().__init__(
             original_frame_rate=30.0,
             last_frame_index=next(iter(data.values())).shape[0],
+            trial_type=trial_type,
         )
 
     def set_resample_ratio(self, ratio: int) -> None:
@@ -296,7 +304,7 @@ class GlbKinematicsData(KinematicsData):
             raise ValueError("Unsupported point. Only CENTER_OF_MASS is currently supported.")
 
     @classmethod
-    def from_file(cls, glb_path: str) -> "GlbKinematicsData":
+    def from_file(cls, glb_path: str, trial_type: TrialType) -> "GlbKinematicsData":
         gltf = pygltflib.GLTF2.load(glb_path)
 
         node_names = {}
@@ -418,4 +426,4 @@ class GlbKinematicsData(KinematicsData):
                 glb_pos[name].append(pos)
         for name in glb_pos:
             glb_pos[name] = np.array(glb_pos[name])
-        return cls(data=glb_pos)
+        return cls(data=glb_pos, trial_type=trial_type)

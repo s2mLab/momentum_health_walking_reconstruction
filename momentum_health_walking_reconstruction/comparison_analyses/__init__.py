@@ -1,4 +1,4 @@
-from .kinematics_data import BiorbdKinematicsData, GlbKinematicsData, KinematicsData, Joint, Point, Side
+from .kinematics_data import BiorbdKinematicsData, GlbKinematicsData, KinematicsData, Joint, Point, Side, TrialType
 
 __all__ = [
     BiorbdKinematicsData.__name__,
@@ -7,4 +7,5 @@ __all__ = [
     Joint.__name__,
     Point.__name__,
     Side.__name__,
+    TrialType.__name__,
 ]

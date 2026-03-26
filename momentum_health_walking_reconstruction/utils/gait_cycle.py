@@ -7,6 +7,7 @@ from scipy.signal import find_peaks
 
 if TYPE_CHECKING:
     from ..comparison_analyses.kinematics_data import KinematicsData, Side, Point
+from .math import find_first_below_threshold, derivative
 
 
 class GaitCycle:
@@ -35,7 +36,7 @@ class GaitCycle:
         frame_rate: int,
         starting_index_in_data: int,
     ):
-        gait_speed = np.gradient(center_of_mass_data, 1 / frame_rate, axis=1, edge_order=2)
+        gait_speed = derivative(center_of_mass_data, frame_rate=frame_rate)
         stride_length = np.linalg.norm(heel_data[:, -1] - heel_data[:, 0])
 
         stance_time = toe_off_index / frame_rate
@@ -73,7 +74,7 @@ class GaitCycle:
         return self._swing_time
 
     @classmethod
-    def gait_cycles(cls, kinematics_data: KinematicsData, side: Side, show_plot: bool = False) -> list[GaitCycle]:
+    def extract_all(cls, kinematics_data: KinematicsData, side: Side, show_plot: bool = False) -> list[GaitCycle]:
         from ..comparison_analyses.kinematics_data import Point, Side
 
         if side == Side.LEFT:
@@ -105,8 +106,8 @@ class GaitCycle:
             cycles.append(
                 GaitCycle.from_data(
                     toe_off_index=indices[1] - indices[0],
-                    heel_data=heel_data[indices[0] : indices[2], :],
-                    center_of_mass_data=center_of_mass_data[indices[0] : indices[2], :],
+                    heel_data=heel_data[:, indices[0] : indices[2]],
+                    center_of_mass_data=center_of_mass_data[:, indices[0] : indices[2]],
                     frame_rate=kinematics_data.frame_rate(),
                     starting_index_in_data=indices[0],
                 )
@@ -126,7 +127,7 @@ def _get_gait_cycle_indices(
     side: Side,
 ) -> list[tuple[int, int, int]]:
     """
-    Get gait cycles from C3D data using heel strikes and toe offs.
+    Get gait cycles from data using heel strikes and toe offs.
     - Heel strikes are identified as the first almost no velocity after maxima in the velocity of the heel marker.
     - Toe offs are identified as the first almost no velocity before maxima in the velocity of the toe marker,
     but only if it happens after a heel strike and before the next heel strike.
@@ -138,7 +139,7 @@ def _get_gait_cycle_indices(
     expect_cycle_duration : float
         The expected duration of a gait cycle in seconds, used to set the minimum distance between peaks.
     frame_rate : int
-        The frame rate of the C3D data, used to convert the expected cycle duration into frames.
+        The frame rate of the data, used to convert the expected cycle duration into frames.
     heel_data : np.ndarray
         The 3D positions of the heel marker across frames, used to compute velocity and identify heel strikes (shape: [num_frames, 3]).
     toe_data : np.ndarray
@@ -163,7 +164,7 @@ def _get_gait_cycle_indices(
     expected_cycle_frame_count = int(expect_cycle_duration * frame_rate)
 
     # Find the middle of the swing phase by finding the peaks in the velocity of the heel marker
-    heel_velocity: np.ndarray = np.linalg.norm(np.gradient(heel_data, 1 / frame_rate, axis=0, edge_order=2), axis=1)
+    heel_velocity: np.ndarray = np.linalg.norm(derivative(heel_data, frame_rate), axis=0)
     mid_swing_peaks = find_peaks(
         heel_velocity,
         height=heel_velocity.max() * maximum_peak_threshold,
@@ -173,7 +174,7 @@ def _get_gait_cycle_indices(
     # Heel strikes are identified as the first almost no velocity after the peaks in the velocity of the heel marker
     heel_strikes = []
     for peak in mid_swing_peaks:
-        heel_strike = _find_first_below_threshold(
+        heel_strike = find_first_below_threshold(
             velocity_data=heel_velocity,
             start_index=peak,
             threshold=minimum_velocity_threshold,
@@ -184,11 +185,11 @@ def _get_gait_cycle_indices(
             heel_strikes.append(heel_strike)
 
     # Find toe offs using the velocity of the toe marker
-    ltoe_velocity: np.ndarray = np.linalg.norm(np.gradient(toe_data, 1 / frame_rate, axis=0, edge_order=2), axis=1)
+    ltoe_velocity: np.ndarray = np.linalg.norm(derivative(toe_data, frame_rate), axis=0)
 
     toe_offs = []
     for heel_strike in mid_swing_peaks:
-        toe_off = _find_first_below_threshold(
+        toe_off = find_first_below_threshold(
             velocity_data=ltoe_velocity,
             start_index=heel_strike,
             threshold=minimum_velocity_threshold,
@@ -228,46 +229,3 @@ def _get_gait_cycle_indices(
         plt.show()
 
     return gait_cycles
-
-
-def _find_first_below_threshold(
-    velocity_data: np.ndarray,
-    start_index: int,
-    threshold: float,
-    minimum_frame_count: int,
-    direction: int = 1,
-) -> int:
-    """
-    Find the first index in velocity_data starting from start_index where the velocity drops below a threshold
-
-    Parameters
-    ----------
-    velocity_data : np.ndarray
-        The velocity data to search through.
-    start_index : int
-        The index to start searching from.
-    threshold : float
-        The velocity threshold to compare against.
-    minimum_frame_count : int
-        The minimum number of consecutive frames below the threshold to confirm a valid event.
-    direction : int, optional
-        The direction to search in: 1 for forward, -1 for backward, by default 1.
-    """
-    if direction not in [1, -1]:
-        raise ValueError("Direction must be 1 (forward) or -1 (backward)")
-
-    buffer = 0
-    offset = 0
-    while True:
-        current_index = start_index + (direction * offset)
-        if current_index < 0:
-            return -1
-
-        current_velocity = velocity_data[current_index]
-        if current_velocity > threshold:
-            buffer = 0
-        else:
-            buffer += 1
-            if buffer > minimum_frame_count:
-                return current_index + (-1 * direction * buffer)
-        offset += 1
