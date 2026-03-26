@@ -1,7 +1,10 @@
-from .kinematics_model import BiorbdKinematicsModel, GlbKinematicsModel, perform_align_kinematics
+from .kinematics_data import BiorbdKinematicsData, GlbKinematicsData, KinematicsData, Joint, Point, Side
 
 __all__ = [
-    BiorbdKinematicsModel.__name__,
-    GlbKinematicsModel.__name__,
-    perform_align_kinematics.__name__,
+    BiorbdKinematicsData.__name__,
+    GlbKinematicsData.__name__,
+    KinematicsData.__name__,
+    Joint.__name__,
+    Point.__name__,
+    Side.__name__,
 ]
