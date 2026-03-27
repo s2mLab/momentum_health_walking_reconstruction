@@ -247,7 +247,7 @@ class BiorbdKinematicsData(KinematicsData):
         model = biorbd.Biorbd(model_path)
 
         # Load the inhouse model data along with the data used to compute the kinematics
-        c3d_data = ezc3d.c3d(c3d_path)
+        c3d_data = ezc3d.c3d(str(c3d_path))
         kinematics = np.load(kinematics_path, allow_pickle=True)
 
         return cls(model=model, c3d_data=c3d_data, kinematics=kinematics, trial_type=trial_type)

@@ -1,9 +1,7 @@
 import logging
 from pathlib import Path
 
-from ..kinematics.kinematics_reconstruction import kinematics_reconstruction, ReconstructionMethod
 from ..models.visualizer import Visualizer
-from ..utils.data_markers import DataMarkers
 
 
 def visualize_all_kinematics(
@@ -11,6 +9,7 @@ def visualize_all_kinematics(
     models_base_folder: Path,
     subject_names: list[str],
     results_folder: Path,
+    trial_file_name_filters: list[str] | None = None,
     model_name: str = "lower_body.bioMod",
 ):
     _logger = logging.getLogger(__name__)
@@ -23,7 +22,12 @@ def visualize_all_kinematics(
         data_folder = data_base_folder / subject
         model_path = models_base_folder / subject / model_name
         result_folder = results_folder / subject
-        trial_files = data_folder.glob("*.c3d")
+        trial_files = []
+        if trial_file_name_filters is None:
+            trial_files = data_folder.glob("*.c3d")
+        else:
+            for filter in trial_file_name_filters:
+                trial_files.extend(data_folder.glob(f"*{filter}*.c3d"))
 
         if visualizer is None:
             visualizer = Visualizer(model_path=model_path)

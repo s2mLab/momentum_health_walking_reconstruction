@@ -34,6 +34,7 @@
                 "MODELS_BASE_FOLDER": "<Path to your models folder>",
                 "SUBJECT_NAMES": "comma,separated,subject,names",
                 "RESULTS_BASE_FOLDER": "<Path to your result folder>",
+                "TRIAL_FILE_NAME_FILTERS": "<comma,separated,filters>",
                 "ANIMATE_MODELS": "<true | [false]>",
                 "OVERRIDE_EXISTING_TRIALS": "<true | [false]>",
             },
@@ -49,6 +50,7 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}",
                 "DATA_BASE_FOLDER": "<Path to your data folder>",
+                "TRIAL_FILE_NAME_FILTERS": "<comma,separated,filters>"
                 "MODELS_BASE_FOLDER": "<Path to your models folder>",
                 "SUBJECT_NAMES": "comma,separated,subject,names",
                 "RESULTS_BASE_FOLDER": "<Path to your result folder>",
@@ -64,7 +66,12 @@
             "justMyCode": true,
             "cwd": "${workspaceFolder}/runner/",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}:< BIOBUDDY_PATH>",
+                "PYTHONPATH": "${workspaceFolder}",
+                "DATA_BASE_FOLDER": "<Path to your data folder>",
+                "MODELS_BASE_FOLDER": "<Path to your models folder>",
+                "SUBJECT_NAMES": "comma,separated,subject,names",
+                "RESULTS_BASE_FOLDER": "<Path to your result folder>",
+                "TRIAL_FILE_NAME_FILTER": "walk5|quiet_stand"
             },
         },
     ]

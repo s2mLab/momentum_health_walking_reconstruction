@@ -14,6 +14,7 @@ def reconstruct_all_kinematics(
     subject_names: list[str],
     results_folder: Path,
     model_name: str = "lower_body.bioMod",
+    trial_file_name_filters: list[str] | None = None,
     override_existing_trials: bool = False,
     animate_models: bool = False,
     reconstruction_method=ReconstructionMethod.KALMAN,
@@ -28,7 +29,12 @@ def reconstruct_all_kinematics(
         data_folder = data_base_folder / subject
         model_path = models_base_folder / subject / model_name
         result_folder = results_folder / subject
-        trial_files = data_folder.glob("*.c3d")
+        trial_files = []
+        if trial_file_name_filters is None:
+            trial_files = data_folder.glob("*.c3d")
+        else:
+            for filter in trial_file_name_filters:
+                trial_files.extend(data_folder.glob(f"*{filter}*.c3d"))
 
         if animate_models:
             if visualizer is None:
