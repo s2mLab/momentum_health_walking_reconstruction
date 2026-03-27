@@ -1,3 +1,4 @@
+from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 from matplotlib import pyplot as plt
@@ -10,68 +11,57 @@ if TYPE_CHECKING:
 from .math import find_first_below_threshold, derivative
 
 
+class MeanSpeedAlgorithm(Enum):
+    TOTAL_DISTANCE_OVER_TOTAL_TIME = auto()
+    AVERAGE_INSTANTANEOUS_SPEED = auto()
+
+
 class GaitCycle:
     def __init__(
         self,
-        starting_index_in_data: int,
         toe_off_index: int,
-        gait_speed: np.ndarray,
-        stride_length: float,
-        stance_time: float,
-        swing_time: float,
-    ):
-        self._starting_index_in_data = starting_index_in_data
-        self._toe_off_index = toe_off_index
-        self._gait_speed = gait_speed
-        self._stride_length = stride_length
-        self._stance_time = stance_time
-        self._swing_time = swing_time
-
-    @classmethod
-    def from_data(
-        cls,
-        toe_off_index: int,
-        heel_data: np.ndarray,
         center_of_mass_data: np.ndarray,
+        heel_data: np.ndarray,
         frame_rate: int,
         starting_index_in_data: int,
     ):
-        gait_speed = derivative(center_of_mass_data, frame_rate=frame_rate)
-        stride_length = np.linalg.norm(heel_data[:, -1] - heel_data[:, 0])
-
-        stance_time = toe_off_index / frame_rate
-        swing_time = (heel_data.shape[1] - toe_off_index) / frame_rate
-
-        return cls(
-            starting_index_in_data=starting_index_in_data,
-            toe_off_index=toe_off_index,
-            gait_speed=gait_speed,
-            stride_length=stride_length,
-            stance_time=stance_time,
-            swing_time=swing_time,
-        )
+        self._starting_index_in_data = starting_index_in_data
+        self._toe_off_index = toe_off_index
+        self._center_of_mass_data = center_of_mass_data
+        self._heel_data = heel_data
+        self._frame_rate = frame_rate
 
     def gait_speed(self, exclude_vertical: bool = False) -> np.ndarray:
-        return self._gait_speed[:2, :] if exclude_vertical else self._gait_speed
+        data = self._center_of_mass_data[:2, :] if exclude_vertical else self._center_of_mass_data
+        return derivative(data, frame_rate=self._frame_rate)
 
-    def mean_gait_speed(self, exclude_vertical: bool = False) -> float:
-        return np.mean(np.linalg.norm(self.gait_speed(exclude_vertical=exclude_vertical), axis=0))
+    def mean_gait_speed(
+        self,
+        exclude_vertical: bool = False,
+        algorithm: MeanSpeedAlgorithm = MeanSpeedAlgorithm.AVERAGE_INSTANTANEOUS_SPEED,
+    ) -> float:
+        if algorithm == MeanSpeedAlgorithm.TOTAL_DISTANCE_OVER_TOTAL_TIME:
+            return np.linalg.norm(self._center_of_mass_data[:, -1] - self._center_of_mass_data[:, 0]) / self.stride_time
+        elif algorithm == MeanSpeedAlgorithm.AVERAGE_INSTANTANEOUS_SPEED:
+            return np.mean(np.linalg.norm(self.gait_speed(exclude_vertical=exclude_vertical), axis=0))
+        else:
+            raise ValueError("Unsupported mean speed algorithm.")
 
-    @property
-    def stride_length(self) -> float:
-        return self._stride_length
+    def stride_length(self, exclude_vertical: bool = False) -> float:
+        data = self._heel_data[:2, :] if exclude_vertical else self._heel_data
+        return np.linalg.norm(data[:, -1] - data[:, 0])
 
     @property
     def stride_time(self) -> float:
-        return self._stance_time + self._swing_time
+        return self.stance_time + self.swing_time
 
     @property
     def stance_time(self) -> float:
-        return self._stance_time
+        return self._toe_off_index / self._frame_rate
 
     @property
     def swing_time(self) -> float:
-        return self._swing_time
+        return (self._heel_data.shape[1] - self._toe_off_index) / self._frame_rate
 
     @classmethod
     def extract_all(cls, kinematics_data: KinematicsData, side: Side, show_plot: bool = False) -> list[GaitCycle]:
@@ -104,10 +94,10 @@ class GaitCycle:
         cycles: list[GaitCycle] = []
         for indices in cycle_indices:
             cycles.append(
-                GaitCycle.from_data(
+                GaitCycle(
                     toe_off_index=indices[1] - indices[0],
-                    heel_data=heel_data[:, indices[0] : indices[2]],
                     center_of_mass_data=center_of_mass_data[:, indices[0] : indices[2]],
+                    heel_data=heel_data[:, indices[0] : indices[2]],
                     frame_rate=kinematics_data.frame_rate(),
                     starting_index_in_data=indices[0],
                 )

@@ -13,26 +13,13 @@ from .math import find_first_below_threshold, derivative
 class SwayTrial:
     def __init__(
         self,
-        starting_index_in_data: int,
         center_of_mass_data: np.ndarray,
         frame_rate: int,
+        starting_index_in_data: int,
     ):
-        self._starting_index_in_data = starting_index_in_data
         self._center_of_mass_data = center_of_mass_data
         self._frame_rate = frame_rate
-
-    @classmethod
-    def from_data(
-        cls,
-        center_of_mass_data: np.ndarray,
-        frame_rate: int,
-        starting_index_in_data: int,
-    ):
-        return cls(
-            starting_index_in_data=starting_index_in_data,
-            center_of_mass_data=center_of_mass_data,
-            frame_rate=frame_rate,
-        )
+        self._starting_index_in_data = starting_index_in_data
 
     def length(self, exclude_vertical: bool = False) -> int:
         data_slice = slice(None) if not exclude_vertical else slice(2)
@@ -82,7 +69,7 @@ class SwayTrial:
             minimum_zeros_frame=30,
             show_plot=show_plot,
         )
-        return SwayTrial.from_data(
+        return SwayTrial(
             center_of_mass_data=center_of_mass_data[:, indices[0] : indices[1]],
             frame_rate=kinematics_data.frame_rate(),
             starting_index_in_data=indices[0],
