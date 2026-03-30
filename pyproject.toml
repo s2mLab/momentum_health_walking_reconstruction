@@ -24,6 +24,9 @@ dependencies = [
     "ezc3d", 
     "numpy",
     "pyomeca",
+    "pygltflib",
+    "tqdm",
+    "scipy",
 ]
 
 [project.optional-dependencies]

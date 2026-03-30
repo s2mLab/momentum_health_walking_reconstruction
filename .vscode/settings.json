@@ -9,6 +9,7 @@
         "editor.formatOnSave": true,
         "editor.rulers": [ 120 ],
     },
+    "python.analysis.extraPaths": [ "./external/biobuddy" ],
     "python-envs.defaultEnvManager": "ms-python.python:conda",
     "python-envs.defaultPackageManager": "ms-python.python:conda",
 }
