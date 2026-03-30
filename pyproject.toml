@@ -27,6 +27,7 @@ dependencies = [
     "pygltflib",
     "tqdm",
     "scipy",
+    "plotly",
 ]
 
 [project.optional-dependencies]

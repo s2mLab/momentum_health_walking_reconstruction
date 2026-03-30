@@ -427,3 +427,80 @@ class GlbKinematicsData(KinematicsData):
         for name in glb_pos:
             glb_pos[name] = np.array(glb_pos[name])
         return cls(data=glb_pos, trial_type=trial_type)
+
+
+class GlbAsCsvKinematicsData(KinematicsData):
+    def __init__(self, data: dict[str, np.ndarray], trial_type: TrialType):
+        self._data = data
+        super().__init__(
+            original_frame_rate=30.0,
+            last_frame_index=next(iter(data.values())).shape[0],
+            trial_type=trial_type,
+        )
+
+    def set_resample_ratio(self, ratio: int) -> None:
+        raise NotImplementedError(
+            "Resampling is not supported for GLB data since it is already at a fixed frame rate of 30 FPS."
+        )
+
+    def angles(self, joint: Joint, side: Side, resampled: bool = True) -> np.ndarray:
+        if side == Side.LEFT:
+            hip_name = "left_hip"
+            knee_name = "left_knee"
+            ankle_name = "left_ankle"
+        elif side == Side.RIGHT:
+            hip_name = "right_hip"
+            knee_name = "right_knee"
+            ankle_name = "right_ankle"
+        else:
+            raise ValueError("Invalid side. Must be Side.LEFT or Side.RIGHT.")
+
+        if joint == Joint.KNEE:
+            data_slice = self._data_slice(resampled=resampled)
+            hip_to_knee = self._data[knee_name][data_slice, :] - self._data[hip_name][data_slice, :]
+            knee_to_ankle = self._data[ankle_name][data_slice, :] - self._data[knee_name][data_slice, :]
+            hip_to_knee_norm = hip_to_knee / (np.linalg.norm(hip_to_knee, axis=1, keepdims=True) + 1e-6)
+            knee_to_ankle_norm = knee_to_ankle / (np.linalg.norm(knee_to_ankle, axis=1, keepdims=True) + 1e-6)
+            return np.arccos(np.clip(np.sum(hip_to_knee_norm * knee_to_ankle_norm, axis=1), -1, 1))
+        else:
+            raise ValueError("Unsupported joint. Only KNEE is currently supported.")
+
+    def points(self, point: Point, resampled: bool = True) -> np.ndarray:
+        if point == Point.CENTER_OF_MASS:
+            raise NotImplementedError("Center of mass data is not available in the GLB file.")
+        else:
+            raise ValueError("Unsupported point. Only CENTER_OF_MASS is currently supported.")
+
+    @classmethod
+    def from_file(cls, csv_path: str, trial_type: TrialType) -> "GlbKinematicsData":
+        with open(csv_path, "r") as f:
+            lines = f.readlines()
+
+        # Find the label starting of data rows
+        starting_line_label = "Per-Frame Series"
+        starting_line_index = None
+        for i, line in enumerate(lines):
+            if line.startswith(starting_line_label):
+                starting_line_index = i + 1
+                break
+        else:
+            raise ValueError(f"Could not find starting label '{starting_line_label}' in CSV file.")
+
+        header_line = lines[starting_line_index].strip()
+        column_names = header_line.split(",")
+        data = {name: [] for name in column_names}
+        for line in lines[starting_line_index + 1 :]:
+            if line == "\n":
+                # We reached the end of the data section
+                break
+            values = line.strip().split(",")
+            for name, value in zip(column_names, values):
+                if name == "is_non_walking":
+                    # data[name].append(value == "true")
+                    pass
+                else:
+                    data[name].append(float(value))
+
+        for name in data:
+            data[name] = np.array(data[name])
+        return cls(data=data, trial_type=trial_type)

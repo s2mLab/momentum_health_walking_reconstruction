@@ -40,7 +40,7 @@ def generate_all_models(
             else:
                 visualizer.swap_model(model_path=output_model_filepath)
 
-            static_path = list(calibration_folder.glob("*static.c3d"))[0]
+            static_path = list(calibration_folder.glob("*func_anat.c3d"))[0]
             visualizer.load_movement(markers_path=static_path)
 
             # Wait until the user press "Enter" in the console to go to the next trial

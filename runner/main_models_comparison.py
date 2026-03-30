@@ -4,7 +4,7 @@ import os
 from momentum_health_walking_reconstruction import (
     KinematicsData,
     BiorbdKinematicsData,
-    GlbKinematicsData,
+    GlbAsCsvKinematicsData,
     Side,
     GaitCycle,
     SwayTrial,
@@ -34,20 +34,18 @@ def _get_kinematics_metrics(
         glb_filter = "quiet_stand"
         inhouse_filter = "quiet_stand"
     elif trial_type == TrialType.GAIT:
-        glb_filter = "gait"
+        glb_filter = "700"
         inhouse_filter = "walk_5m"
     else:
         raise ValueError(f"Could not determine trial type from file path: {trial_type}")
 
-    data_folder = kinematics_base_folder / subject
-
-    # # Load the momentum_health data
-    # glb_file_path = _load_single_file(data_folder, glb_filter, "glb")
-    # momentum = GlbKinematicsData.from_file(glb_path=glb_file_path, trial_type=trial_type)
+    # Load the momentum_health data
+    csv_file_path = _load_single_file(data_base_folder / subject, glb_filter, "csv")
+    momentum = GlbAsCsvKinematicsData.from_file(csv_path=csv_file_path, trial_type=trial_type)
 
     # Load the in-house data
     model_path = f"{model_base_folder}/{subject}/lower_body.bioMod"
-    inhouse_file_path = _load_single_file(data_folder, inhouse_filter, "npy")
+    inhouse_file_path = _load_single_file(kinematics_base_folder / subject, inhouse_filter, "npy")
     c3d_file_path = _load_single_file(data_base_folder / subject, inhouse_filter, "c3d")
     inhouse = BiorbdKinematicsData.from_file(
         model_path=model_path, c3d_path=c3d_file_path, kinematics_path=inhouse_file_path, trial_type=trial_type

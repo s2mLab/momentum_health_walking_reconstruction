@@ -99,96 +99,99 @@ class Markers(Enum):
     RTOE5 = "RTOE5"
 
 
+# Head
+lfhd = Markers.LFHD.value
+rfhd = Markers.RFHD.value
+lbhd = Markers.LBHD.value
+rbhd = Markers.RBHD.value
+
+# Arms
+lsho = Markers.LSHO.value
+lelb = Markers.LELB.value
+lwra = Markers.LWRA.value
+lwrb = Markers.LWRB.value
+lfin = Markers.LFIN.value
+rsho = Markers.RSHO.value
+relb = Markers.RELB.value
+rwra = Markers.RWRA.value
+rwrb = Markers.RWRB.value
+rfin = Markers.RFIN.value
+
+# Trunk
+c7 = Markers.C7.value
+c2 = Markers.C2.value
+t6 = Markers.T6.value
+t10 = Markers.T10.value
+s1 = Markers.S1.value
+s3 = Markers.S3.value
+clav = Markers.CLAV.value
+strn = Markers.STRN.value
+
+# Hip
+lpsi = Markers.LPSI.value
+rpsi = Markers.RPSI.value
+lasi = Markers.LASI.value
+rasi = Markers.RASI.value
+
+# LThigh
+lthi = Markers.LTHI.value
+lthib = Markers.LTHIB.value
+lthid = Markers.LTHID.value
+lknee = Markers.LKNEE.value
+lkneem = Markers.LKNEEM.value
+# LShank
+ltib = Markers.LTIB.value
+ltibf = Markers.LTIBF.value
+ltibd = Markers.LTIBD.value
+lank = Markers.LANK.value
+lankm = Markers.LANKM.value
+# LFoot
+lhee = Markers.LHEE.value
+lnav = Markers.LNAV.value
+ltoe = Markers.LTOE.value
+ltoe5 = Markers.LTOE5.value
+
+# RThigh
+rthi = Markers.RTHI.value
+rthib = Markers.RTHIB.value
+rthid = Markers.RTHID.value
+rknee = Markers.RKNEE.value
+rkneem = Markers.RKNEEM.value
+# RShank
+rtib = Markers.RTIB.value
+rtibf = Markers.RTIBF.value
+rtibd = Markers.RTIBD.value
+rank = Markers.RANK.value
+rankm = Markers.RANKM.value
+# RFoot
+rhee = Markers.RHEE.value
+rnav = Markers.RNAV.value
+rtoe = Markers.RTOE.value
+rtoe5 = Markers.RTOE5.value
+
+
 def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) -> BiomechanicalModelReal:
     # --- Load all the required data files --- #
     trial_names = {
-        "static": "*static.c3d",
-        "left_hip_functionnal": "*func_lhip.c3d",
-        "left_knee_functionnal": "*func_lknee.c3d",
-        "left_ankle_functionnal": "*func_lankle.c3d",
-        "right_hip_functionnal": "*func_rhip.c3d",
-        "right_knee_functionnal": "*func_rknee.c3d",
-        "right_ankle_functionnal": "*func_rankle.c3d",
+        "static": ["*func_anat.c3d", tuple([m.value for m in Markers])],
+        "left_hip_functionnal": ["*func_lhip.c3d", (lpsi, rpsi, lasi, rasi, lthi, lthib, lthid)],
+        "left_knee_functionnal": ["*func_lknee.c3d", (lthi, lthib, lthid, ltib, ltibf, ltibd, lknee, lkneem)],
+        "left_ankle_functionnal": ["*func_lankle.c3d", (ltib, ltibf, ltibd, lhee, lnav, ltoe, ltoe5)],
+        "right_hip_functionnal": ["*func_rhip.c3d", (lpsi, rpsi, lasi, rasi, rthi, rthib, rthid)],
+        "right_knee_functionnal": ["*func_rknee.c3d", (rthi, rthib, rthid, rtib, rtibf, rtibd, rknee, rkneem)],
+        "right_ankle_functionnal": ["*func_rankle.c3d", (rtib, rtibf, rtibd, rhee, rnav, rtoe, rtoe5)],
     }
 
     trials: dict[str, DataMarkers] = {}
-    for key, pattern in trial_names.items():
+    for key, values in trial_names.items():
+        pattern = values[0]
+        expected_marker_names = values[1]
         files = list(calibration_folder.glob(pattern))
         if len(files) != 1:
             raise RuntimeError(f"Expected exactly one {key} file in {calibration_folder}, found {len(files)}.")
         trials[key] = DataMarkers.from_c3d(files[0]).filter(
-            expected_marker_names=tuple([m.value for m in Markers]), rename_markers=False
+            expected_marker_names=expected_marker_names, rename_markers=False
         )
-
-    # Head
-    lfhd = Markers.LFHD.value
-    rfhd = Markers.RFHD.value
-    lbhd = Markers.LBHD.value
-    rbhd = Markers.RBHD.value
-
-    # Arms
-    lsho = Markers.LSHO.value
-    lelb = Markers.LELB.value
-    lwra = Markers.LWRA.value
-    lwrb = Markers.LWRB.value
-    lfin = Markers.LFIN.value
-    rsho = Markers.RSHO.value
-    relb = Markers.RELB.value
-    rwra = Markers.RWRA.value
-    rwrb = Markers.RWRB.value
-    rfin = Markers.RFIN.value
-
-    # Trunk
-    c7 = Markers.C7.value
-    c2 = Markers.C2.value
-    t6 = Markers.T6.value
-    t10 = Markers.T10.value
-    s1 = Markers.S1.value
-    s3 = Markers.S3.value
-    clav = Markers.CLAV.value
-    strn = Markers.STRN.value
-
-    # Hip
-    lpsi = Markers.LPSI.value
-    rpsi = Markers.RPSI.value
-    lasi = Markers.LASI.value
-    rasi = Markers.RASI.value
-
-    # LThigh
-    lthi = Markers.LTHI.value
-    lthib = Markers.LTHIB.value
-    lthid = Markers.LTHID.value
-    lknee = Markers.LKNEE.value
-    lkneem = Markers.LKNEEM.value
-    # LShank
-    ltib = Markers.LTIB.value
-    ltibf = Markers.LTIBF.value
-    ltibd = Markers.LTIBD.value
-    lank = Markers.LANK.value
-    lankm = Markers.LANKM.value
-    # LFoot
-    lhee = Markers.LHEE.value
-    lnav = Markers.LNAV.value
-    ltoe = Markers.LTOE.value
-    ltoe5 = Markers.LTOE5.value
-
-    # RThigh
-    rthi = Markers.RTHI.value
-    rthib = Markers.RTHIB.value
-    rthid = Markers.RTHID.value
-    rknee = Markers.RKNEE.value
-    rkneem = Markers.RKNEEM.value
-    # RShank
-    rtib = Markers.RTIB.value
-    rtibf = Markers.RTIBF.value
-    rtibd = Markers.RTIBD.value
-    rank = Markers.RANK.value
-    rankm = Markers.RANKM.value
-    # RFoot
-    rhee = Markers.RHEE.value
-    rnav = Markers.RNAV.value
-    rtoe = Markers.RTOE.value
-    rtoe5 = Markers.RTOE5.value
 
     # --- Generate the personalized kinematic model --- #
     model = BiomechanicalModel()
@@ -405,7 +408,12 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             functional_data=trials["left_knee_functionnal"].to_biobuddy(),
             parent_marker_names=[ltibd, ltib, ltibf],  # Child and parent swapped to get correct axis direction
             child_marker_names=[lthib, lthid, lthi],
-            origin_marker=Marker("LKNEE_MID", lknee_mid),
+            original_axis_global=(
+                trials["left_knee_functionnal"][lknee] - trials["left_knee_functionnal"][lkneem]
+            ).mean(axis=1),
+            origin_positions_global=(
+                (trials["left_knee_functionnal"][lknee] + trials["left_knee_functionnal"][lkneem]) / 2
+            ),
             visualize=False,
         )
         if use_score
@@ -507,7 +515,12 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             functional_data=trials["right_knee_functionnal"].to_biobuddy(),
             parent_marker_names=[rthid, rthi, rthib],
             child_marker_names=[rtib, rtibf, rtibd],
-            origin_marker=Marker("RKNEE_MID", rknee_mid),
+            original_axis_global=(
+                trials["right_knee_functionnal"][rkneem] - trials["right_knee_functionnal"][rknee]
+            ).mean(axis=1),
+            origin_positions_global=(
+                (trials["right_knee_functionnal"][rknee] + trials["right_knee_functionnal"][rkneem]) / 2
+            ),
             visualize=False,
         )
         if use_score
