@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Iterable
 
@@ -40,18 +41,34 @@ class DataMarkers:
     def marker_names(self) -> list[str]:
         return self._marker_names
 
-    def filter(self, expected_marker_names: Iterable[str], rename_markers: bool = True) -> "DataMarkers":
+    def filter(
+        self,
+        expected_marker_names: Iterable[str],
+        rename_markers: bool = True,
+        markers_are_mandatory: bool = True,
+        frames: slice | None = None,
+    ) -> "DataMarkers":
         new_data: dict[str, np.ndarray] = {}
         for m in expected_marker_names:
             is_found = False
             for name in self._marker_names:
                 if name.endswith(m):
                     if is_found:
-                        raise RuntimeError(f"Marker {m} found multiple times in the C3D file.")
-                    new_data[m if not rename_markers else name] = self[name][:, None, :]
+                        raise RuntimeError(f"Marker {m} found multiple times in the data.")
+                    d = self[name][..., frames] if frames is not None else self[name]
+                    new_data[m if not rename_markers else name] = d[:, None, :]
                     is_found = True
             if not is_found:
-                raise RuntimeError(f"Marker {m} not found in the C3D file.")
+                if markers_are_mandatory:
+                    raise RuntimeError(f"Marker {m} not found in the data.")
+                else:
+                    logging.warning(
+                        f"Marker {m} not found in the data, but markers_are_mandatory is set to False, filling with nan."
+                    )
+                    d = np.ndarray((4, len(self))) * np.nan
+                    d = d[..., frames] if frames is not None else d
+                    d[3, :] = 1  # Set the homogeneous coordinate to 1
+                    new_data[m if not rename_markers else m] = d[:, None, :]
 
         return DataMarkers(marker_names=new_data.keys(), markers=np.concatenate(list(new_data.values()), axis=1))
 

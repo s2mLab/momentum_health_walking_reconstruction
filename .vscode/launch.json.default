@@ -9,7 +9,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/external/biobuddy",  // Change ":" for ";" on Windows
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/external/biobuddy:${workspaceFolder}/external/bioviz",  // Change ":" for ";" on Windows
                 "DATA_BASE_FOLDER": "<Path to your data folder>",
                 "SUBJECT_NAMES": "comma,separated,subject,names",
                 "RESULTS_BASE_FOLDER": "<Path to your result folder>",
@@ -26,7 +26,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/external/biobuddy",  // Change ":" for ";" on Windows
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/external/biobuddy:${workspaceFolder}/external/bioviz",  // Change ":" for ";" on Windows
                 "DATA_BASE_FOLDER": "<Path to your data folder>",
                 "MODELS_BASE_FOLDER": "<Path to your models folder>",
                 "SUBJECT_NAMES": "comma,separated,subject,names",
@@ -45,7 +45,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/external/biobuddy",  // Change ":" for ";" on Windows
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/external/biobuddy:${workspaceFolder}/external/bioviz",  // Change ":" for ";" on Windows
                 "DATA_BASE_FOLDER": "<Path to your data folder>",
                 "TRIAL_FILE_NAME_FILTERS": "<comma,separated,filters>", // "quiet_stand,walk_5m"
                 "MODELS_BASE_FOLDER": "<Path to your models folder>",
@@ -63,7 +63,7 @@
             "justMyCode": true,
             "cwd": "${workspaceFolder}/runner/",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/external/biobuddy",  // Change ":" for ";" on Windows
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/external/biobuddy:${workspaceFolder}/external/bioviz",  // Change ":" for ";" on Windows
                 "DATA_BASE_FOLDER": "<Path to your data folder>",
                 "MODELS_BASE_FOLDER": "<Path to your models folder>",
                 "SUBJECT_NAMES": "comma,separated,subject,names",

@@ -6,6 +6,7 @@ from biobuddy import ViewAs
 
 from ..models.lower_body import generate_lower_body_model
 from ..models.visualizer import Visualizer
+from ..kinematics.kinematics_reconstruction import kinematics_reconstruction, ReconstructionMethod
 
 
 def generate_all_models(
@@ -35,13 +36,22 @@ def generate_all_models(
         model.to_biomod(output_model_filepath)
 
         if animate_models:
+            static_path = list(calibration_folder.glob("*func_anat.c3d"))[0]
+            q = kinematics_reconstruction(
+                data_path=static_path,
+                model_path=output_model_filepath,
+                reconstruction_method=ReconstructionMethod.KALMAN,
+            )
+            q = q.mean(axis=1, keepdims=True)
+
             if visualizer is None:
                 visualizer = Visualizer(model_path=output_model_filepath)
             else:
                 visualizer.swap_model(model_path=output_model_filepath)
-
-            static_path = list(calibration_folder.glob("*func_anat.c3d"))[0]
-            visualizer.load_movement(markers_path=static_path)
+            visualizer.load_movement(kinematics_array=q, markers_path=static_path)
 
             # Wait until the user press "Enter" in the console to go to the next trial
             input("Press Enter to continue to the next trial...")
+            if not visualizer._viz.vtk_window.is_active:
+                # If the window was closed, we set the visualizer to None so that it will be re-created for the next subject
+                visualizer = None

@@ -19,15 +19,22 @@ class Visualizer:
         ]
 
     def swap_model(self, model_path: Path):
-
         # This is possible only because they all use the same Biomechanical model structure
         self._viz.model = biorbd.Model(model_path.as_posix())
+        self._viz.Markers.m = self._viz.model
+        self._viz.CoM.m = self._viz.model
+        self._viz.CoMbySegment.m = self._viz.model
+        self._viz.meshPointsInMatrix.m = self._viz.model
+        self._viz.allGlobalJCS.m = self._viz.model
+        self._viz.set_q(np.zeros(self._viz.model.nbQ()), refresh_window=True)
 
     def update_frame(self, q: np.ndarray, markers: np.ndarray):
         self._viz.set_q(q, refresh_window=False)
         self._viz.set_experimental_markers(Markers(markers[:, :, None]), refresh_window=True)
 
-    def load_movement(self, kinematics_path: Path = None, markers_path: Path = None):
+    def load_movement(
+        self, kinematics_path: Path = None, kinematics_array: np.ndarray = None, markers_path: Path = None
+    ):
         # Get the model
         model = self._viz.model
 
@@ -45,10 +52,17 @@ class Visualizer:
             self._viz.show_experimental_markers = True
 
         # Load the kinematics
-        if kinematics_path is not None:
+        if kinematics_path is not None and kinematics_array is not None:
+            raise ValueError("Only one of kinematics_path or kinematics_array should be provided.")
+        elif kinematics_array is not None:
+            q = kinematics_array
+            self._viz.load_movement(q, auto_start=False)
+        elif kinematics_path is not None:
             q = np.load(kinematics_path.as_posix())
             self._viz.load_movement(q, auto_start=False)
 
         # Set the first frame
+        self._viz.set_q(q[:, 0], refresh_window=True)
         self._viz._set_movement_slider()
+        self._viz._animate_from_slider()
         self._viz.refresh_window()

@@ -105,13 +105,16 @@ def _kalman_inverse_kinematics(model: biorbd.Biorbd, data: DataMarkers, visualiz
 def kinematics_reconstruction(
     data_path: Path,
     model_path: Path,
+    frames: slice | None = None,
     reconstruction_method: ReconstructionMethod = ReconstructionMethod.KALMAN,
     visualizer: Visualizer = None,
 ) -> np.ndarray:
     model = biorbd.Biorbd(model_path.as_posix())
 
     # Load markers from c3d file
-    data = DataMarkers.from_c3d(data_path).filter(expected_marker_names=[marker.name for marker in model.markers])
+    data = DataMarkers.from_c3d(data_path).filter(
+        expected_marker_names=[marker.name for marker in model.markers], markers_are_mandatory=False, frames=frames
+    )
 
     if reconstruction_method == ReconstructionMethod.QLD:
         q_recons = _qld_inverse_kinematics(model=model, data=data, visualizer=visualizer)

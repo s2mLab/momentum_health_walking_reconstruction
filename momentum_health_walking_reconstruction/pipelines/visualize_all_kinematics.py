@@ -44,7 +44,13 @@ def visualize_all_kinematics(
             if not kinematics_filepath.exists():
                 _logger.info(f"  Result file not reconstructed, skipping.")
                 continue
+            if visualizer is None:
+                visualizer = Visualizer(model_path=model_path)
+
             visualizer.load_movement(kinematics_path=kinematics_filepath, markers_path=trial)
 
             # Wait until the user press "Enter" in the console to go to the next trial
             input("Press Enter to continue to the next trial...")
+            if not visualizer._viz.vtk_window.is_active:
+                # If the window was closed, we set the visualizer to None so that it will be re-created for the next subject
+                visualizer = None

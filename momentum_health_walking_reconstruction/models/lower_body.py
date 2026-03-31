@@ -189,9 +189,12 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
         files = list(calibration_folder.glob(pattern))
         if len(files) != 1:
             raise RuntimeError(f"Expected exactly one {key} file in {calibration_folder}, found {len(files)}.")
-        trials[key] = DataMarkers.from_c3d(files[0]).filter(
-            expected_marker_names=expected_marker_names, rename_markers=False
-        )
+        try:
+            trials[key] = DataMarkers.from_c3d(files[0]).filter(
+                expected_marker_names=expected_marker_names, rename_markers=False
+            )
+        except Exception as e:
+            raise RuntimeError(f"Error while loading '{files[0].name}' trial: {e}") from e
 
     # --- Generate the personalized kinematic model --- #
     model = BiomechanicalModel()
@@ -409,7 +412,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             parent_marker_names=[ltibd, ltib, ltibf],  # Child and parent swapped to get correct axis direction
             child_marker_names=[lthib, lthid, lthi],
             original_axis_global=(
-                trials["left_knee_functionnal"][lknee] - trials["left_knee_functionnal"][lkneem]
+                trials["left_knee_functionnal"][lkneem] - trials["left_knee_functionnal"][lknee]
             ).mean(axis=1),
             origin_positions_global=(
                 (trials["left_knee_functionnal"][lknee] + trials["left_knee_functionnal"][lkneem]) / 2
@@ -516,7 +519,7 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             parent_marker_names=[rthid, rthi, rthib],
             child_marker_names=[rtib, rtibf, rtibd],
             original_axis_global=(
-                trials["right_knee_functionnal"][rkneem] - trials["right_knee_functionnal"][rknee]
+                trials["right_knee_functionnal"][rknee] - trials["right_knee_functionnal"][rkneem]
             ).mean(axis=1),
             origin_positions_global=(
                 (trials["right_knee_functionnal"][rknee] + trials["right_knee_functionnal"][rkneem]) / 2
@@ -581,4 +584,9 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
 
     _logger.info("Collapsing the model to real...")
     model_real = model.to_real(trials["static"].to_biobuddy())
+
+    # Use Pelvis as root segment
+    model_real.segments["Pelvis"].parent_name = model_real.segments["root"].parent_name
+    model_real.segments["Pelvis"].segment_coordinate_system = model_real.segments["root"].segment_coordinate_system
+    model_real.segments._remove("root")
     return model_real
