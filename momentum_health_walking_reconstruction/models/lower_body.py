@@ -411,12 +411,8 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             functional_data=trials["left_knee_functionnal"].to_biobuddy(),
             parent_marker_names=[ltibd, ltib, ltibf],  # Child and parent swapped to get correct axis direction
             child_marker_names=[lthib, lthid, lthi],
-            original_axis_global=(
-                trials["left_knee_functionnal"][lkneem] - trials["left_knee_functionnal"][lknee]
-            ).mean(axis=1),
-            origin_positions_global=(
-                (trials["left_knee_functionnal"][lknee] + trials["left_knee_functionnal"][lkneem]) / 2
-            ),
+            expected_rotation_axis_orientation=Axis("AoR", start=lknee, end=lkneem),
+            origin_positions_global=lambda x, model: (x.values[lknee] + x.values[lkneem]) / 2,
             visualize=False,
         )
         if use_score
@@ -518,12 +514,8 @@ def generate_lower_body_model(calibration_folder: Path, use_score: bool = True) 
             functional_data=trials["right_knee_functionnal"].to_biobuddy(),
             parent_marker_names=[rthid, rthi, rthib],
             child_marker_names=[rtib, rtibf, rtibd],
-            original_axis_global=(
-                trials["right_knee_functionnal"][rknee] - trials["right_knee_functionnal"][rkneem]
-            ).mean(axis=1),
-            origin_positions_global=(
-                (trials["right_knee_functionnal"][rknee] + trials["right_knee_functionnal"][rkneem]) / 2
-            ),
+            expected_rotation_axis_orientation=Axis("AoR", start=rkneem, end=rknee),
+            origin_positions_global=lambda x, model: (x.values[rknee] + x.values[rkneem]) / 2,
             visualize=False,
         )
         if use_score

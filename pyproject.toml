@@ -28,6 +28,7 @@ dependencies = [
     "tqdm",
     "scipy",
     "plotly",
+    "lxml",
 ]
 
 [project.optional-dependencies]

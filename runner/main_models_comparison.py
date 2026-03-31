@@ -84,10 +84,6 @@ def _get_kinematics_metrics(
     return metrics
 
 
-def mean_gait_speed(data_getter: list[callable]) -> float:
-    return sum(getter() for getter in data_getter) / len(data_getter)
-
-
 def main():
     data_base_folder = Path(os.getenv("DATA_BASE_FOLDER"))
     model_base_folder = Path(os.getenv("MODELS_BASE_FOLDER"))
@@ -102,9 +98,10 @@ def main():
     else:
         raise ValueError(f"Could not determine trial type from file path: {trial_type_filter}")
 
+    metrics = {}
     for subject in subject_names:
         print(f"Processing subject {subject} for trial type {trial_type.value}...")
-        metrics = _get_kinematics_metrics(
+        metrics[subject] = _get_kinematics_metrics(
             data_base_folder=data_base_folder,
             model_base_folder=model_base_folder,
             kinematics_base_folder=kinematics_base_folder,
@@ -115,14 +112,14 @@ def main():
 
         # Show metrics
         if trial_type == TrialType.SWAY:
-            sway: SwayTrial = metrics["sway"]["inhouse"]
+            sway: SwayTrial = metrics[subject]["sway"]["inhouse"]
             print(f"Sway amplitude: {sway.amplitude(exclude_vertical=True).mean() * 1000:.2f} mm")
             print(f"Sway mean velocity: {sway.velocity(exclude_vertical=True).mean() * 1000:.2f} mm/s")
             print(f"Sway confidence ellipse: {sway.confidence_ellipse(confidence_level=0.95)}")
             print(f"Sway length: {sway.length(exclude_vertical=True) * 1000:.2f} mm")
         elif trial_type == TrialType.GAIT:
-            left_cycles: list[GaitCycle] = metrics["left_cycles"]["inhouse"]
-            right_cycles: list[GaitCycle] = metrics["right_cycles"]["inhouse"]
+            left_cycles: list[GaitCycle] = metrics[subject]["left_cycles"]["inhouse"]
+            right_cycles: list[GaitCycle] = metrics[subject]["right_cycles"]["inhouse"]
             all_cycles = left_cycles + right_cycles
 
             if not all_cycles:
