@@ -40,6 +40,26 @@ class GaitCycle(AnalysesData):
         data = self._center_of_mass_data[:2, :] if exclude_vertical else self._center_of_mass_data
         return derivative(data, frame_rate=self._frame_rate)
 
+    @staticmethod
+    def mean_gait_speed_from_cycles(
+        cycles: list[GaitCycle],
+        exclude_vertical: bool = False,
+        algorithm: MeanSpeedAlgorithm = MeanSpeedAlgorithm.AVERAGE_INSTANTANEOUS_SPEED,
+        compute_std: bool = False,
+    ) -> float | tuple[float, float]:
+        if not cycles:
+            return np.nan if not compute_std else (np.nan, np.nan)
+        out = np.mean(
+            [cycle.mean_gait_speed(exclude_vertical=exclude_vertical, algorithm=algorithm) for cycle in cycles]
+        )
+        if compute_std:
+            std = np.std(
+                [cycle.mean_gait_speed(exclude_vertical=exclude_vertical, algorithm=algorithm) for cycle in cycles]
+            )
+            out = (out, std)
+
+        return out
+
     def mean_gait_speed(
         self,
         exclude_vertical: bool = False,
@@ -56,6 +76,12 @@ class GaitCycle(AnalysesData):
         data = self._heel_data[:2, :] if exclude_vertical else self._heel_data
         return np.linalg.norm(data[:, -1] - data[:, 0])
 
+    @staticmethod
+    def mean_stride_length_from_cycles(cycles: list[GaitCycle], exclude_vertical: bool = False) -> float:
+        if not cycles:
+            return np.nan
+        return np.mean([cycle.stride_length(exclude_vertical=exclude_vertical) for cycle in cycles])
+
     @property
     def stride_time(self) -> float:
         return self.stance_time + self.swing_time
@@ -64,9 +90,21 @@ class GaitCycle(AnalysesData):
     def stance_time(self) -> float:
         return self._toe_off_index / self._frame_rate
 
+    @staticmethod
+    def mean_stance_time_from_cycles(cycles: list[GaitCycle]) -> float:
+        if not cycles:
+            return np.nan
+        return np.mean([cycle.stance_time for cycle in cycles])
+
     @property
     def swing_time(self) -> float:
         return (self._heel_data.shape[1] - self._toe_off_index) / self._frame_rate
+
+    @staticmethod
+    def mean_swing_time_from_cycles(cycles: list[GaitCycle]) -> float:
+        if not cycles:
+            return np.nan
+        return np.mean([cycle.swing_time for cycle in cycles])
 
     @classmethod
     def extract_all(cls, kinematics_data: KinematicsData, side: Side, show_plot: bool = False) -> list[GaitCycle]:
