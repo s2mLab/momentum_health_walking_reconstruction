@@ -131,10 +131,35 @@ class KinematicsData(ABC):
     def extract_sway_trial(self, show_plot: bool = False) -> "SwayTrial":
         pass
 
-    @staticmethod
-    def perform_align_kinematics_data(
-        data1: KinematicsData, data2: KinematicsData, side: Side, show_plot: bool = False
+    def plot(
+        self,
+        joint: Joint,
+        side: Side,
+        resampled: bool = True,
+        title: str = None,
+        label: str = None,
+        show_now: bool = True,
     ) -> None:
+        if title is not None:
+            plt.figure(title)
+
+        time_vector = self.time_vector(resampled=resampled)
+        plt.plot(
+            time_vector,
+            self.angles(joint=joint, side=side, resampled=resampled),
+            label=f"{side.name} {joint.name}" + (f" - {label}" if label is not None else ""),
+        )
+
+        plt.legend()
+        plt.title("Joint angles")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Angle (degrees)")
+
+        if show_now:
+            plt.show()
+
+    @staticmethod
+    def perform_align_kinematics_data(data1: KinematicsData, data2: KinematicsData, show_plot: bool = False) -> None:
         if data1.frame_count() > data2.frame_count():
             data1.set_resample_ratio(data1.frame_rate(resampled=False) // data2.frame_rate())
         elif data2.frame_count() > data1.frame_count():
@@ -702,11 +727,6 @@ class GlbAsCsvKinematicsData(KinematicsData):
             trial_type=trial_type,
         )
 
-    def set_resample_ratio(self, ratio: int) -> None:
-        raise NotImplementedError(
-            "Resampling is not supported for GLB data since it is already at a fixed frame rate of 30 FPS."
-        )
-
     def angles(self, joint: Joint, side: Side, resampled: bool = True) -> np.ndarray:
         if side == Side.LEFT:
             knee_name = "knee_flexion_deg_L"
@@ -785,7 +805,7 @@ class GlbAsCsvKinematicsData(KinematicsData):
             antero_posterior_amplitude=self._precomputed_metrics["sway_rms_ap_cm"] / 100.0,
             medio_lateral_amplitude=self._precomputed_metrics["sway_rms_ml_cm"] / 100.0,
             mean_velocity=self._precomputed_metrics["sway_velocity_cm_s"] / 100.0,
-            confidence_ellipse_area=self._precomputed_metrics["sway_ellipse_area_cm2"] / 10000.0,
+            confidence_ellipse_area=self._precomputed_metrics["sway_ellipse_area_cm2"] / 100.0**2,
             length=self._precomputed_metrics["sway_path_length_cm"] / 100.0,
         )
 

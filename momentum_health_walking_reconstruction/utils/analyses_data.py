@@ -21,6 +21,12 @@ class SwayDirection(Enum):
     HORIZONTAL_PLANE = auto()
 
 
+class GaitMetrics(Enum):
+    GAIT_SPEED = auto()
+    STRIDE_LENGTH = auto()
+    STRIDE_TIME = auto()
+
+
 class GaitCycle(AnalysesData):
     def __init__(
         self,
@@ -166,6 +172,14 @@ class PreComputedGaitCycle(AnalysesData):
         raise ValueError("Swing time is not available for PreComputedGaitCycle.")
 
 
+class SwayMetrics(Enum):
+    AMPLITUDE_AP = auto()
+    AMPLITUDE_ML = auto()
+    LENGTH = auto()
+    VELOCITY = auto()
+    CONFIDENCE_ELLIPSE_AREA = auto()
+
+
 class SwayTrial(AnalysesData):
     def __init__(
         self,
@@ -188,6 +202,12 @@ class SwayTrial(AnalysesData):
             raise ValueError("Unsupported sway direction.")
         return np.sum(np.linalg.norm(np.diff(self._center_of_mass_data[data_slice, :], axis=1), axis=0))
 
+    @staticmethod
+    def mean_length_from_trials(trials: list[SwayTrial], direction: SwayDirection) -> float:
+        if not trials:
+            return np.nan
+        return np.mean([trial.length(direction=direction) for trial in trials])
+
     def amplitude(self, direction: SwayDirection) -> float:
         if direction == SwayDirection.ANTERO_POSTERIOR:
             data_slice = 0
@@ -198,6 +218,12 @@ class SwayTrial(AnalysesData):
         else:
             raise ValueError("Unsupported sway direction.")
         return np.ptp(self._center_of_mass_data[data_slice, :], axis=0)
+
+    @staticmethod
+    def mean_amplitude_from_trials(trials: list[SwayTrial], direction: SwayDirection) -> float:
+        if not trials:
+            return np.nan
+        return np.mean([trial.amplitude(direction=direction) for trial in trials])
 
     def velocity(self, direction: SwayDirection) -> np.ndarray:
         if direction == SwayDirection.ANTERO_POSTERIOR:
@@ -212,6 +238,12 @@ class SwayTrial(AnalysesData):
 
     def mean_velocity(self, direction: SwayDirection) -> float:
         return np.mean(self.velocity(direction=direction))
+
+    @staticmethod
+    def mean_mean_velocity_from_trials(trials: list[SwayTrial], direction: SwayDirection) -> float:
+        if not trials:
+            return np.nan
+        return np.mean([trial.mean_velocity(direction=direction) for trial in trials])
 
     def confidence_ellipse(self, confidence_level: float = 0.95) -> tuple[np.ndarray, np.ndarray]:
         # Compute the covariance matrix of the center of mass data
@@ -238,6 +270,12 @@ class SwayTrial(AnalysesData):
     def confidence_ellipse_area(self, confidence_level: float = 0.95) -> float:
         (width, height), _ = self.confidence_ellipse(confidence_level=confidence_level)
         return np.pi * (width / 2) * (height / 2)
+
+    @staticmethod
+    def mean_confidence_ellipse_area_from_trials(trials: list[SwayTrial], confidence_level: float = 0.95) -> float:
+        if not trials:
+            return np.nan
+        return np.mean([trial.confidence_ellipse_area(confidence_level=confidence_level) for trial in trials])
 
 
 class PreComputedSwayTrial(SwayTrial):

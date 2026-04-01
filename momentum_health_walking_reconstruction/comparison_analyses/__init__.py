@@ -8,6 +8,7 @@ from .kinematics_data import (
     Side,
     TrialType,
 )
+from .metrics import Metrics
 
 __all__ = [
     BiorbdKinematicsData.__name__,
@@ -18,4 +19,5 @@ __all__ = [
     Point.__name__,
     Side.__name__,
     TrialType.__name__,
+    Metrics.__name__,
 ]
