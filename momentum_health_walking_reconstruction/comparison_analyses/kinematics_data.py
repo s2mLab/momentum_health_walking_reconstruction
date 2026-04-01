@@ -139,11 +139,11 @@ class KinematicsData(ABC):
         return derivative(self.points(point, resampled=resampled), frame_rate=self.frame_rate(resampled=resampled))
 
     @abstractmethod
-    def extract_gait_cycles(self, side: Side, show_plot: bool = False) -> list["GaitCycle"]:
+    def extract_gait_cycles(self, side: Side, show_plot: bool = False) -> list[GaitCycle]:
         pass
 
     @abstractmethod
-    def extract_sway_trial(self, show_plot: bool = False) -> "SwayTrial":
+    def extract_sway_trial(self, show_plot: bool = False) -> SwayTrial:
         pass
 
     def plot(

@@ -38,8 +38,9 @@ class Metrics:
         )
 
         # Show metrics
+        trial_indices = {}
         if trial_type == TrialType.SWAY:
-            metrics_to_fetch = [
+            scalar_metrics_to_fetch = [
                 [
                     SwayMetrics.AMPLITUDE_AP,
                     SwayTrial.mean_amplitude_from_trials,
@@ -72,7 +73,7 @@ class Metrics:
                 ],
             ]
 
-            mean_metrics = {
+            mean_scalar_metrics = {
                 metric[0]: {
                     data_type: {
                         subject: metric[3](metric[1](metrics[subject]["sway"][data_type], **metric[2]))
@@ -80,22 +81,30 @@ class Metrics:
                     }
                     for data_type in data_types
                 }
-                for metric in metrics_to_fetch
+                for metric in scalar_metrics_to_fetch
+            }
+            # TODO
+            inhouse_trial_indices = {
+                subject: {
+                    side: [data.indices() for data in metrics[subject][f"{side.name}_cycles"]["Inhouse"]]
+                    for side in [Side.LEFT, Side.RIGHT]
+                }
+                for subject in metrics.keys()
             }
 
         elif trial_type == TrialType.GAIT:
-            metrics_to_fetch = [
+            scalar_metrics_to_fetch = [
                 [GaitMetrics.GAIT_SPEED, GaitCycle.mean_gait_speed_from_cycles, {}],
                 [GaitMetrics.STRIDE_LENGTH, GaitCycle.mean_stride_length_from_cycles, {}],
                 [GaitMetrics.STRIDE_TIME, GaitCycle.mean_stride_time_from_cycles, {}],
             ]
 
-            mean_metrics = {
+            mean_scalar_metrics = {
                 metric[0]: {
                     data_type: {
                         subject: np.mean(
                             [
-                                metric[1](*metrics[subject][f"{side.name}_cycles"][data_type], **metric[2])
+                                metric[1](metrics[subject][f"{side.name}_cycles"][data_type], **metric[2])
                                 for side in [Side.LEFT, Side.RIGHT]
                             ]
                         )
@@ -103,13 +112,66 @@ class Metrics:
                     }
                     for data_type in data_types
                 }
-                for metric in metrics_to_fetch
+                for metric in scalar_metrics_to_fetch
+            }
+
+            # TODO
+            inhouse_trial_indices = {
+                subject: {
+                    side: [data.indices() for data in metrics[subject][f"{side.name}_cycles"]["Inhouse"]]
+                    for side in [Side.LEFT, Side.RIGHT]
+                }
+                for subject in metrics.keys()
             }
 
         else:
             raise ValueError(f"Unsupported trial type: {trial_type}")
 
-        return mean_metrics
+        joints_to_fetch = [Joint.KNEE]
+        mean_angles_metrics = {
+            joint: {
+                side: {
+                    data_type: {
+                        subject: [
+                            _cut_kinematics_data(
+                                kinematics_data=metrics[subject]["trial"][data_type],
+                                joint=joint,
+                                side=side,
+                                indices_list=inhouse_trial_indices[subject][side],
+                                to_degrees=True,
+                            )
+                        ]
+                        for subject in metrics.keys()
+                    }
+                    for data_type in data_types
+                }
+                for side in [Side.LEFT, Side.RIGHT]
+            }
+            for joint in joints_to_fetch
+        }
+
+        return mean_scalar_metrics, mean_angles_metrics
+
+
+def _cut_kinematics_data(
+    kinematics_data: KinematicsData, joint: Joint, side: Side, indices_list: list[tuple[int, int]], to_degrees: bool
+) -> np.ndarray:
+    raw_data = kinematics_data.angles(joint=joint, side=side)
+    if to_degrees:
+        raw_data = np.degrees(raw_data)
+    raw_time_vector = kinematics_data.time_vector()
+
+    cut_data = []
+    new_frame_count = 1000
+    for start_index, end_index in indices_list:
+        cut_data.append(
+            np.interp(
+                np.linspace(raw_time_vector[start_index], raw_time_vector[end_index - 1], num=new_frame_count),
+                raw_time_vector[start_index:end_index],
+                raw_data[start_index:end_index],
+            )
+        )
+    return np.array(cut_data)
 
 
 def _get_trials_metrics(
@@ -169,6 +231,7 @@ def _get_trials_metrics(
             KinematicsData.perform_align_kinematics_data(all_data["Inhouse"], all_data["Momentum Health A"])
             # all_data["Plug-in Gait"].duplicate_alignment_data_from(reference=all_data["Inhouse"])
 
+            metrics["trial"] = all_data
             if show_plot:
                 for i, data_type in enumerate(all_data.keys()):
                     all_data[data_type].plot(
@@ -184,7 +247,7 @@ def _get_trials_metrics(
                     metrics["sway"] = {data_type: [] for data_type in all_data.keys()}
 
                 for data_type in all_data.keys():
-                    metrics["sway"][data_type].append(all_data[data_type].extract_sway_trial(show_plot=show_plot))
+                    metrics["sway"][data_type].extend(all_data[data_type].extract_sway_trial(show_plot=show_plot))
 
             elif trial_type == TrialType.GAIT:
                 for side in [Side.LEFT, Side.RIGHT]:
@@ -192,7 +255,7 @@ def _get_trials_metrics(
                         metrics[f"{side.name}_cycles"] = {data_type: [] for data_type in all_data.keys()}
 
                     for data_type in all_data.keys():
-                        metrics[f"{side.name}_cycles"][data_type].append(
+                        metrics[f"{side.name}_cycles"][data_type].extend(
                             all_data[data_type].extract_gait_cycles(side=side, show_plot=show_plot)
                         )
 

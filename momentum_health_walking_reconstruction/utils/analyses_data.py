@@ -42,6 +42,9 @@ class GaitCycle(AnalysesData):
         self._heel_data = heel_data
         self._frame_rate = frame_rate
 
+    def indices(self) -> tuple[int, int]:
+        return self._starting_index_in_data, self._starting_index_in_data + self._center_of_mass_data.shape[1]
+
     def gait_speed(self, exclude_vertical: bool = False) -> np.ndarray:
         data = self._center_of_mass_data[:2, :] if exclude_vertical else self._center_of_mass_data
         return derivative(data, frame_rate=self._frame_rate)
