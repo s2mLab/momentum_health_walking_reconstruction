@@ -2,7 +2,15 @@ from pathlib import Path
 
 import numpy as np
 
-from .kinematics_data import BiorbdKinematicsData, GlbAsCsvKinematicsData, Joint, KinematicsData, TrialType, Side
+from .kinematics_data import (
+    BiorbdKinematicsData,
+    MomentumHealthCsvKinematicsData,
+    PigKinematicsData,
+    Joint,
+    KinematicsData,
+    TrialType,
+    Side,
+)
 from ..utils.analyses_data import GaitCycle, GaitMetrics, SwayDirection, SwayMetrics, SwayTrial
 
 
@@ -18,7 +26,7 @@ class Metrics:
         data_matching: dict,
         show_plot: bool = False,
     ) -> dict:
-        metrics = _get_trials_metrics(
+        data_types, metrics = _get_trials_metrics(
             data_base_folder=data_base_folder,
             model_base_folder=model_base_folder,
             kinematics_base_folder=kinematics_base_folder,
@@ -70,7 +78,7 @@ class Metrics:
                         subject: metric[3](metric[1](metrics[subject]["sway"][data_type], **metric[2]))
                         for subject in metrics.keys()
                     }
-                    for data_type in ["inhouse", "momentum_health_a", "momentum_health_b"]
+                    for data_type in data_types
                 }
                 for metric in metrics_to_fetch
             }
@@ -93,7 +101,7 @@ class Metrics:
                         )
                         for subject in metrics.keys()
                     }
-                    for data_type in ["inhouse", "momentum_health_a", "momentum_health_b"]
+                    for data_type in data_types
                 }
                 for metric in metrics_to_fetch
             }
@@ -113,87 +121,87 @@ def _get_trials_metrics(
     trial_names: list[str],
     data_matching: dict,
     show_plot: bool = False,
-) -> dict:
+) -> tuple[list[str], dict]:
 
+    all_data = {}
     all_metrics = {}
     for subject in subjects:
         metrics = {}
         for trial_name in trial_names:
-            inhouse_filter = data_matching[subject][trial_name]["c3d"]
             momentum_health_filter_a = data_matching[subject][trial_name]["cameraA"]
             momentum_health_filter_b = data_matching[subject][trial_name]["cameraB"]
-            if inhouse_filter is None or momentum_health_filter_a is None or momentum_health_filter_b is None:
+            inhouse_filter = data_matching[subject][trial_name]["c3d"]
+            pig_filter = inhouse_filter
+            if momentum_health_filter_a is None or momentum_health_filter_b is None or inhouse_filter is None:
                 raise ValueError(
-                    f"Expected 'inhouse', 'cameraA' and 'cameraB' filters to be defined for subject '{subject}' and trial '{trial_name}' in the data matching JSON."
+                    f"Expected 'cameraA', 'cameraB', and 'inhouse' filters to be defined for subject '{subject}' "
+                    f"and trial '{trial_name}' in the data matching JSON."
                 )
 
             # Load the momentum_health data
-            momentum_health_a_file_path = _load_single_file(
-                data_base_folder / "momentum_health_data" / subject, momentum_health_filter_a, "csv"
-            )
-            momentum_health_b_file_path = _load_single_file(
-                data_base_folder / "momentum_health_data" / subject, momentum_health_filter_b, "csv"
-            )
-            momentum_health_a = GlbAsCsvKinematicsData.from_file(
-                csv_path=momentum_health_a_file_path, trial_type=trial_type
-            )
-            momentum_health_b = GlbAsCsvKinematicsData.from_file(
-                csv_path=momentum_health_b_file_path, trial_type=trial_type
-            )
-
-            # Load the in-house data
-            model_path = f"{model_base_folder}/{subject}/lower_body.bioMod"
-            inhouse_file_path = _load_single_file(kinematics_base_folder / subject, inhouse_filter, "npy")
-            c3d_file_path = _load_single_file(data_base_folder / "inhouse_data" / subject, inhouse_filter, "c3d")
-            inhouse = BiorbdKinematicsData.from_file(
-                model_path=model_path, c3d_path=c3d_file_path, kinematics_path=inhouse_file_path, trial_type=trial_type
-            )
+            all_data: dict[str, KinematicsData] = {
+                "Momentum Health A": MomentumHealthCsvKinematicsData.from_file(
+                    csv_path=_load_single_file(
+                        data_base_folder / "momentum_health_data" / subject, momentum_health_filter_a, "csv"
+                    ),
+                    trial_type=trial_type,
+                ),
+                "Momentum Health B": MomentumHealthCsvKinematicsData.from_file(
+                    csv_path=_load_single_file(
+                        data_base_folder / "momentum_health_data" / subject, momentum_health_filter_b, "csv"
+                    ),
+                    trial_type=trial_type,
+                ),
+                "Inhouse": BiorbdKinematicsData.from_file(
+                    model_path=f"{model_base_folder}/{subject}/lower_body.bioMod",
+                    kinematics_path=_load_single_file(kinematics_base_folder / subject, inhouse_filter, "npy"),
+                    c3d_path=_load_single_file(data_base_folder / "inhouse_data" / subject, inhouse_filter, "c3d"),
+                    trial_type=trial_type,
+                ),
+                # "Plug-in Gait": PigKinematicsData.from_file(
+                #     c3d_path=_load_single_file(data_base_folder / "pig_data" / subject, pig_filter, "c3d"),
+                #     trial_type=trial_type,
+                # ),
+            }
 
             # Align the data together
-            KinematicsData.perform_align_kinematics_data(momentum_health_b, momentum_health_a, show_plot=False)
-            KinematicsData.perform_align_kinematics_data(inhouse, momentum_health_a, show_plot=False)
+            KinematicsData.perform_align_kinematics_data(all_data["Momentum Health A"], all_data["Momentum Health B"])
+            KinematicsData.perform_align_kinematics_data(all_data["Inhouse"], all_data["Momentum Health A"])
+            # all_data["Plug-in Gait"].duplicate_alignment_data_from(reference=all_data["Inhouse"])
+
             if show_plot:
-                momentum_health_a.plot(
-                    joint=Joint.KNEE, side=Side.LEFT, title="Knee Angles", label="Momentum Health A", show_now=False
-                )
-                momentum_health_b.plot(
-                    joint=Joint.KNEE, side=Side.LEFT, title="Knee Angles", label="Momentum Health B", show_now=False
-                )
-                inhouse.plot(joint=Joint.KNEE, side=Side.LEFT, title="Knee Angles", label="Inhouse", show_now=True)
+                for i, data_type in enumerate(all_data.keys()):
+                    all_data[data_type].plot(
+                        joint=Joint.KNEE,
+                        side=Side.LEFT,
+                        title="Knee Angles",
+                        label=data_type,
+                        show_now=(i == len(all_data) - 1),
+                    )
 
             if trial_type == TrialType.SWAY:
                 if "sway" not in metrics:
-                    metrics["sway"] = {"inhouse": [], "momentum_health_a": [], "momentum_health_b": []}
+                    metrics["sway"] = {data_type: [] for data_type in all_data.keys()}
 
-                metrics["sway"]["inhouse"].append(inhouse.extract_sway_trial(show_plot=show_plot))
-                metrics["sway"]["momentum_health_a"].append(momentum_health_a.extract_sway_trial(show_plot=show_plot))
-                metrics["sway"]["momentum_health_b"].append(momentum_health_b.extract_sway_trial(show_plot=show_plot))
+                for data_type in all_data.keys():
+                    metrics["sway"][data_type].append(all_data[data_type].extract_sway_trial(show_plot=show_plot))
 
             elif trial_type == TrialType.GAIT:
                 for side in [Side.LEFT, Side.RIGHT]:
                     if f"{side}_cycles" not in metrics:
-                        metrics[f"{side.name}_cycles"] = {
-                            "inhouse": [],
-                            "momentum_health_a": [],
-                            "momentum_health_b": [],
-                        }
+                        metrics[f"{side.name}_cycles"] = {data_type: [] for data_type in all_data.keys()}
 
-                    metrics[f"{side.name}_cycles"]["inhouse"].append(
-                        inhouse.extract_gait_cycles(side=side, show_plot=show_plot)
-                    )
-                    metrics[f"{side.name}_cycles"]["momentum_health_a"].append(
-                        momentum_health_a.extract_gait_cycles(side=side, show_plot=show_plot)
-                    )
-                    metrics[f"{side.name}_cycles"]["momentum_health_b"].append(
-                        momentum_health_b.extract_gait_cycles(side=side, show_plot=show_plot)
-                    )
+                    for data_type in all_data.keys():
+                        metrics[f"{side.name}_cycles"][data_type].append(
+                            all_data[data_type].extract_gait_cycles(side=side, show_plot=show_plot)
+                        )
 
             else:
                 raise ValueError(f"Unsupported trial type: {trial_type}")
 
         all_metrics[subject] = metrics
 
-    return all_metrics
+    return all_data.keys(), all_metrics
 
 
 def _load_single_file(data_folder: Path, filter: str, expected_extension: str) -> Path:

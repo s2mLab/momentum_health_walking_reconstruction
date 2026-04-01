@@ -51,6 +51,21 @@ class KinematicsData(ABC):
         self._last_frame_index = last_frame_index
         self._trial_type = trial_type
 
+    def duplicate_alignment_data_from(self, reference: KinematicsData):
+        if (
+            self._original_frame_rate != reference._original_frame_rate
+            or self._trial_type != reference._trial_type
+            or self._original_last_frame_index != reference._original_last_frame_index
+        ):
+            raise ValueError(
+                "Cannot duplicate align data from another KinematicsData with different original frame rate, trial type, or original last frame index."
+            )
+
+        self.set_resample_ratio(reference.resample_ratio(resampled=True))
+        self.set_initial_frame_index(0)
+        self.set_last_frame_index(reference.last_frame_index(resampled=True))
+        self.set_initial_frame_index(reference.initial_frame_index(resampled=True))
+
     @property
     def trial_type(self) -> TrialType:
         return self._trial_type
@@ -284,7 +299,9 @@ class BiorbdKinematicsData(KinematicsData):
             )
 
     @classmethod
-    def from_file(cls, model_path: str, c3d_path: str, kinematics_path: str, trial_type: TrialType):
+    def from_file(
+        cls, model_path: str, c3d_path: str, kinematics_path: str, trial_type: TrialType
+    ) -> BiorbdKinematicsData:
         model = biorbd.Biorbd(model_path)
 
         # Load the inhouse model data along with the data used to compute the kinematics
@@ -547,7 +564,7 @@ class BiorbdKinematicsData(KinematicsData):
         return (start_index, end)
 
 
-class GlbKinematicsData(KinematicsData):
+class MomentumHealthGlbKinematicsData(KinematicsData):
     def __init__(self, data: dict[str, np.ndarray], trial_type: TrialType):
         self._data = data
         super().__init__(
@@ -558,7 +575,7 @@ class GlbKinematicsData(KinematicsData):
 
     def set_resample_ratio(self, ratio: int) -> None:
         raise NotImplementedError(
-            "Resampling is not supported for GLB data since it is already at a fixed frame rate of 30 FPS."
+            "Resampling is not supported for MomentumHealth GLB data since it is already at a fixed frame rate of 30 FPS."
         )
 
     def angles(self, joint: Joint, side: Side, resampled: bool = True) -> np.ndarray:
@@ -585,12 +602,12 @@ class GlbKinematicsData(KinematicsData):
 
     def points(self, point: Point, resampled: bool = True) -> np.ndarray:
         if point == Point.CENTER_OF_MASS:
-            raise NotImplementedError("Center of mass data is not available in the GLB file.")
+            raise NotImplementedError("Center of mass data is not available in the MomentumHealth GLB file.")
         else:
             raise ValueError("Unsupported point. Only CENTER_OF_MASS is currently supported.")
 
     @classmethod
-    def from_file(cls, glb_path: str, trial_type: TrialType) -> "GlbKinematicsData":
+    def from_file(cls, glb_path: str, trial_type: TrialType) -> MomentumHealthGlbKinematicsData:
         gltf = pygltflib.GLTF2.load(glb_path)
 
         node_names = {}
@@ -715,7 +732,7 @@ class GlbKinematicsData(KinematicsData):
         return cls(data=glb_pos, trial_type=trial_type)
 
 
-class GlbAsCsvKinematicsData(KinematicsData):
+class MomentumHealthCsvKinematicsData(KinematicsData):
     def __init__(
         self, data: dict[str, np.ndarray], trial_type: TrialType, precomputed_metrics: dict[str, list], frame_count: int
     ):
@@ -810,7 +827,7 @@ class GlbAsCsvKinematicsData(KinematicsData):
         )
 
     @classmethod
-    def from_file(cls, csv_path: str, trial_type: TrialType) -> "GlbKinematicsData":
+    def from_file(cls, csv_path: str, trial_type: TrialType) -> MomentumHealthCsvKinematicsData:
         with open(csv_path, "r") as f:
             lines = f.readlines()
 
@@ -883,3 +900,56 @@ class GlbAsCsvKinematicsData(KinematicsData):
             raise ValueError(f"Unsupported trial type: {trial_type}")
 
         return cls(data=data, trial_type=trial_type, precomputed_metrics=precomputed_metrics, frame_count=frame_count)
+
+
+class PigKinematicsData(KinematicsData):
+    def __init__(self, data: dict[str, np.ndarray], frame_rate: float, trial_type: TrialType):
+        self._data = data
+        super().__init__(
+            original_frame_rate=frame_rate,
+            last_frame_index=next(iter(data.values())).shape[1],
+            trial_type=trial_type,
+        )
+
+    def angles(self, joint: Joint, side: Side, resampled: bool = True) -> np.ndarray:
+        raise NotImplementedError("Joint angle data is not yet available in the Pig C3D file.")
+
+        if side == Side.LEFT:
+            side_prefix = "L"
+        elif side == Side.RIGHT:
+            side_prefix = "R"
+        else:
+            raise ValueError("Invalid side. Must be Side.LEFT or Side.RIGHT.")
+
+        if joint == Joint.KNEE:
+            joint_prefix = "KneeAngles"
+        else:
+            raise ValueError("Unsupported joint. Only KNEE is currently supported.")
+
+        data_slice = self._data_slice(resampled=resampled)
+        return self._data[f"{side_prefix}{joint_prefix}"][data_slice, :]
+
+    def points(self, point: Point, resampled: bool = True) -> np.ndarray:
+        raise NotImplementedError("Point data is not available in the Pig C3D file.")
+
+    def extract_gait_cycles(self, side: Side, show_plot: bool = False) -> list["GaitCycle"]:
+        raise NotImplementedError(
+            "Gait cycle extraction is not supported for the Pig C3D data since it is not a walking trial."
+        )
+
+    def extract_sway_trial(self, show_plot: bool = False) -> "SwayTrial":
+        raise NotImplementedError(
+            "Sway trial extraction is not supported for the Pig C3D data since it is not a sway trial."
+        )
+
+    @classmethod
+    def from_file(cls, c3d_path: str, trial_type: TrialType) -> PigKinematicsData:
+        # Load the kinematics stored in the C3D file
+        c3d_data = ezc3d.c3d(str(c3d_path))
+
+        data = {}
+        for col_index, point_name in enumerate(c3d_data.parameters["POINT"]["LABELS"]["value"]):
+            data[point_name] = c3d_data.data["points"][:3, col_index, :]
+
+        frame_rate = c3d_data.header["points"]["frame_rate"]
+        return cls(data=data, frame_rate=frame_rate, trial_type=trial_type)

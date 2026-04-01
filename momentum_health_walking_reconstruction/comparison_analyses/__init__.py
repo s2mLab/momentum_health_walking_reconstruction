@@ -1,7 +1,8 @@
 from .kinematics_data import (
     BiorbdKinematicsData,
-    GlbAsCsvKinematicsData,
-    GlbKinematicsData,
+    PigKinematicsData,
+    MomentumHealthCsvKinematicsData,
+    MomentumHealthGlbKinematicsData,
     KinematicsData,
     Joint,
     Point,
@@ -12,8 +13,9 @@ from .metrics import Metrics
 
 __all__ = [
     BiorbdKinematicsData.__name__,
-    GlbKinematicsData.__name__,
-    GlbAsCsvKinematicsData.__name__,
+    PigKinematicsData.__name__,
+    MomentumHealthGlbKinematicsData.__name__,
+    MomentumHealthCsvKinematicsData.__name__,
     KinematicsData.__name__,
     Joint.__name__,
     Point.__name__,
