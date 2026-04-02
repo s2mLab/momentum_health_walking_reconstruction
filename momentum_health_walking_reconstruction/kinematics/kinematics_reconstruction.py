@@ -14,7 +14,13 @@ class ReconstructionMethod(Enum):
     KALMAN = 2
 
 
-def _qld_inverse_kinematics(model: biorbd.Biorbd, data: DataMarkers, visualizer: Visualizer | None) -> np.ndarray:
+def _qld_inverse_kinematics(
+    model: biorbd.Biorbd,
+    data: DataMarkers,
+    visualizer: Visualizer | None,
+    use_robust_initialization: bool = True,
+    q_init: np.ndarray | None = None,
+) -> np.ndarray:
     """Perform inverse kinematics using the QLD algorithm.
 
     Parameters
@@ -25,6 +31,13 @@ def _qld_inverse_kinematics(model: biorbd.Biorbd, data: DataMarkers, visualizer:
         The marker data.
     visualizer : Visualizer, optional
         The visualizer to update during reconstruction.
+    use_robust_initialization : bool, optional
+        Whether to use a robust initialization method, i.e. performing a first reconstruction on the first frame to find
+        a good initial guess for the root and then performing a second reconstruction of the first frame using this initial guess.
+        Then, performing the rest of the reconstruction using this improved initial guess, by default True.
+        If a q_init is provided, this parameter is ignored for all the non-root segments
+    q_init : np.ndarray, optional
+        Initial guess for the generalized coordinates.
 
     Returns
     -------
@@ -41,8 +54,20 @@ def _qld_inverse_kinematics(model: biorbd.Biorbd, data: DataMarkers, visualizer:
         return residual_vector[~np.isnan(residual_vector)]
 
     results = []
-    q_init = np.zeros(model.nb_q)
-    for frame in data.to_biorbd():
+    if q_init is None:
+        q_init = np.zeros(model.nb_q)
+    for i, frame in enumerate(data.to_biorbd()):
+        if i == 0 and use_robust_initialization:
+            q_init = _qld_inverse_kinematics(
+                model=model,
+                data=DataMarkers(data.marker_names, frame),
+                visualizer=None,
+                q_init=q_init,
+                use_robust_initialization=False,
+            )[:, 0]
+            root_count = model.internal.nbRoot()
+            q_init[root_count:] = 0
+
         results.append(
             optimize.least_squares(
                 objective_function,
@@ -55,6 +80,7 @@ def _qld_inverse_kinematics(model: biorbd.Biorbd, data: DataMarkers, visualizer:
                 max_nfev=1000,
             ).x
         )
+
         q_init = results[-1]
 
         if visualizer is not None:
@@ -80,9 +106,12 @@ def _kalman_inverse_kinematics(model: biorbd.Biorbd, data: DataMarkers, visualiz
     np.ndarray
         The estimated generalized coordinates.
     """
-    # Find a decent first frame
+    # Find a decent first frame for the Root segment
     q_init = _qld_inverse_kinematics(
-        model=model, data=DataMarkers(data.marker_names, data.to_numpy()[:, :, 0]), visualizer=None
+        model=model,
+        data=DataMarkers(data.marker_names, data.to_numpy()[:, :, 0]),
+        visualizer=None,
+        use_robust_initialization=True,
     )[:, 0]
 
     technical_indices = [i for i, marker in enumerate(model.markers) if marker.is_technical]
