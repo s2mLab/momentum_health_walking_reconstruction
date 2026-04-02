@@ -189,7 +189,6 @@ class KinematicsData(ABC):
         elif data2.frame_count() > data1.frame_count():
             data2.set_resample_ratio(data2.frame_rate(resampled=False) // data1.frame_rate())
 
-        # Use maximum the first 10 seconds to align the trigger (a deep squat)
         data1_com_position = data1.points(point=Point.CENTER_OF_MASS, resampled=True)[2, :]
         data2_com_position = data2.points(point=Point.CENTER_OF_MASS, resampled=True)[2, :]
         if show_plot:

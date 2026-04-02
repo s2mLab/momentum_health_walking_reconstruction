@@ -48,8 +48,8 @@ def main():
     for metric_type, data in metrics.items():
         print(f"{metric_type.name.replace('_', ' ').title()}")
         for data_type, subject_data in data.items():
-            mean = np.mean(list(subject_data.values()))
-            std = np.std(list(subject_data.values()))
+            mean = np.nanmean(list(subject_data.values()))
+            std = np.nanstd(list(subject_data.values()))
             print(f"\t{data_type.replace('_', ' ').title()}: {mean:.2f} ± {std:.2f}")
 
     for joint, joint_data in angles.items():
@@ -58,7 +58,7 @@ def main():
             for data_type, subject_data in side_data.items():
                 all_subjects_mean_data = []
                 for subject, trials_data in subject_data.items():
-                    data = np.array(trials_data).mean(axis=1).mean(axis=0)
+                    data = np.nanmean(np.array(trials_data), axis=1).mean(axis=0)
                     if not data.shape:
                         logging.warning(
                             f"Warning: Data for {data_type} could not be averaged across trials for subject {subject}. Skipping this subject."
@@ -66,8 +66,8 @@ def main():
                         continue
                     all_subjects_mean_data.append(data)
                 all_subjects_mean_data = np.array(all_subjects_mean_data)
-                mean = all_subjects_mean_data.mean(axis=0)
-                std = all_subjects_mean_data.std(axis=0)
+                mean = np.nanmean(all_subjects_mean_data, axis=0)
+                std = np.nanstd(all_subjects_mean_data, axis=0)
                 time = np.linspace(0, 100, mean.shape[0])
                 plt.plot(time, mean, label=f"{data_type.replace('_', ' ').title()}")
                 plt.fill_between(time, mean - std, mean + std, alpha=0.2)
