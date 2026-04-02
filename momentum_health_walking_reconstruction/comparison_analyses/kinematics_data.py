@@ -29,7 +29,8 @@ class Side(Enum):
 
 
 class Joint(Enum):
-    # HIP = auto()
+    TRUNK = auto()
+    HIP = auto()
     KNEE = auto()
     # ANKLE = auto()
 
@@ -63,7 +64,7 @@ class KinematicsData(ABC):
 
         self.set_resample_ratio(reference.resample_ratio(resampled=True))
         self.set_initial_frame_index(0)
-        self.set_last_frame_index(reference.last_frame_index(resampled=True))
+        self.set_frame_count(reference.frame_count(resampled=True))
         self.set_initial_frame_index(reference.initial_frame_index(resampled=True))
 
     @property
@@ -75,9 +76,12 @@ class KinematicsData(ABC):
         return full_time_vector[:: self.resample_ratio(resampled=resampled)]
 
     def frame_count(self, resampled: bool = True) -> int:
-        return (
-            self.last_frame_index(resampled=False) - self.initial_frame_index(resampled=False)
-        ) // self.resample_ratio(resampled=resampled)
+        frame_count = (
+            self.last_frame_index(resampled=False) - self.initial_frame_index(resampled=False) + 1
+        ) / self.resample_ratio(resampled=resampled)
+        if frame_count - int(frame_count) > 0:
+            return int(frame_count) + 1
+        return int(frame_count)
 
     def frame_rate(self, resampled: bool = True) -> float:
         return self._original_frame_rate // self.resample_ratio(resampled=resampled)
@@ -109,17 +113,19 @@ class KinematicsData(ABC):
     def original_last_frame_index(self, resampled: bool = True) -> int:
         return self._original_last_frame_index // self.resample_ratio(resampled=resampled)
 
-    def set_last_frame_index(self, new_frame_index: int):
+    def set_frame_count(self, new_frame_count: int):
         initial_frame_index = self.initial_frame_index(resampled=False)
-        new_frame_index_in_original = new_frame_index * self.resample_ratio(resampled=True) + initial_frame_index
+        new_last_frame_index_in_original = (
+            new_frame_count * self.resample_ratio(resampled=True) + initial_frame_index - 1
+        )
 
-        if new_frame_index_in_original < 0 or new_frame_index_in_original >= self._original_last_frame_index:
+        if new_last_frame_index_in_original < 0 or new_last_frame_index_in_original >= self._original_last_frame_index:
             raise ValueError("Offset must be a non-negative integer.")
-        self._last_frame_index = new_frame_index_in_original
+        self._last_frame_index = new_last_frame_index_in_original
 
     def _data_slice(self, resampled: bool = True) -> slice:
         initial_frame_index = self.initial_frame_index(resampled=False)
-        last_frame_index = self.last_frame_index(resampled=False)
+        last_frame_index = self.last_frame_index(resampled=False) + 1
         resample_ratio = self.resample_ratio(resampled=resampled)
         return slice(initial_frame_index, last_frame_index, resample_ratio)
 
@@ -175,17 +181,30 @@ class KinematicsData(ABC):
 
     @staticmethod
     def perform_align_kinematics_data(data1: KinematicsData, data2: KinematicsData, show_plot: bool = False) -> None:
-        if data1.frame_count() > data2.frame_count():
+        if data1.frame_count() == 0 or data2.frame_count() == 0:
+            return
+
+        if data1.frame_rate(resampled=False) > data2.frame_rate(resampled=False):
             data1.set_resample_ratio(data1.frame_rate(resampled=False) // data2.frame_rate())
         elif data2.frame_count() > data1.frame_count():
             data2.set_resample_ratio(data2.frame_rate(resampled=False) // data1.frame_rate())
 
+        # Use maximum the first 10 seconds to align the trigger (a deep squat)
         data1_com_position = data1.points(point=Point.CENTER_OF_MASS, resampled=True)[2, :]
         data2_com_position = data2.points(point=Point.CENTER_OF_MASS, resampled=True)[2, :]
+        if show_plot:
+            title = "Center of mass vertical position before alignment"
+            plt.figure(title)
+            plt.plot(data1.time_vector(resampled=True), data1_com_position, "r-", label="Data1")
+            plt.plot(data2.time_vector(resampled=True), data2_com_position, "b-", label="Data2")
+            plt.legend()
+            plt.title(title)
+            plt.xlabel("Time (s)")
+            plt.ylabel("Height (m)")
 
-        # Normalize the height
-        data1_com_position -= data1_com_position[0]
-        data2_com_position -= data2_com_position[0]
+        # Normalize the height by aligning the mean together
+        data1_com_position -= data1_com_position.mean()
+        data2_com_position -= data2_com_position.mean()
 
         corr = correlate(data1_com_position, data2_com_position, mode="full")
         lags = np.arange(-len(data2_com_position) + 1, len(data1_com_position))
@@ -199,41 +218,52 @@ class KinematicsData(ABC):
         data1_remaining_frames = data1.original_last_frame_index() - data1.initial_frame_index()
         data2_remaining_frames = data2.original_last_frame_index() - data2.initial_frame_index()
         if data1_remaining_frames > data2_remaining_frames:
-            data1.set_last_frame_index(data2_remaining_frames)
+            data1.set_frame_count(data2_remaining_frames)
         elif data2_remaining_frames > data1_remaining_frames:
-            data2.set_last_frame_index(data1_remaining_frames)
+            data2.set_frame_count(data1_remaining_frames)
 
         if show_plot:
-            plt.figure()
+            title = "Center of mass vertical position after alignment"
+            plt.figure(title)
             plt.plot(
                 data1.time_vector(resampled=True),
                 data1.points(point=Point.CENTER_OF_MASS, resampled=True)[2, :],
-                "r--",
-                label="Data1 (resampled)",
-            )
-            plt.plot(
-                data1.time_vector(resampled=False),
-                data1.points(point=Point.CENTER_OF_MASS, resampled=False)[2, :],
                 "r-",
-                label="Data1 (original)",
+                label="Data1",
             )
             plt.plot(
                 data2.time_vector(resampled=True),
                 data2.points(point=Point.CENTER_OF_MASS, resampled=True)[2, :],
-                "b--",
-                label="Data2 (resampled)",
-            )
-            plt.plot(
-                data2.time_vector(resampled=False),
-                data2.points(point=Point.CENTER_OF_MASS, resampled=False)[2, :],
                 "b-",
-                label="Data2 (original)",
+                label="Data2",
             )
             plt.legend()
-            plt.title("Knee trajectory")
+            plt.title(title)
             plt.xlabel("Time (s)")
-            plt.ylabel("Angle (degrees)")
+            plt.ylabel("Height (m)")
             plt.show()
+
+
+class EmptyKinematicsData(KinematicsData):
+    def __init__(self, trial_type: TrialType):
+        self._data = {}
+        super().__init__(
+            original_frame_rate=0.0,
+            last_frame_index=-1,
+            trial_type=trial_type,
+        )
+
+    def angles(self, joint: Joint, side: Side, resampled: bool = True) -> np.ndarray:
+        return np.ndarray((0,))
+
+    def points(self, point: Point, resampled: bool = True) -> np.ndarray:
+        return np.ndarray((3, 0))
+
+    def extract_gait_cycles(self, side: Side, show_plot: bool = False) -> list[GaitCycle]:
+        return []
+
+    def extract_sway_trial(self, show_plot: bool = False) -> SwayTrial:
+        return None
 
 
 class BiorbdKinematicsData(KinematicsData):
@@ -246,7 +276,7 @@ class BiorbdKinematicsData(KinematicsData):
 
         super().__init__(
             original_frame_rate=self._c3d.header["points"]["frame_rate"],
-            last_frame_index=kinematics.shape[1],
+            last_frame_index=kinematics.shape[1] - 1,
             trial_type=trial_type,
         )
 
@@ -270,8 +300,11 @@ class BiorbdKinematicsData(KinematicsData):
 
         if joint == Joint.KNEE:
             joint_prefix = "Shank_RotX"
+        elif joint == Joint.TRUNK:
+            joint_prefix = "Trunk_RotX"
+            side_prefix = ""  # The trunk does not have a side prefix
         else:
-            raise ValueError("Unsupported joint. Only KNEE is currently supported.")
+            raise ValueError("Unsupported joint. Only KNEE and TRUNK are currently supported.")
 
         joint_index = self._model.dof_names.index(f"{side_prefix}{joint_prefix}")
         return self._get_kinematics(resampled=resampled)[joint_index, :]
@@ -302,6 +335,9 @@ class BiorbdKinematicsData(KinematicsData):
     def from_file(
         cls, model_path: str, c3d_path: str, kinematics_path: str, trial_type: TrialType
     ) -> BiorbdKinematicsData:
+        if kinematics_path is None:
+            return EmptyKinematicsData(trial_type=trial_type)
+
         model = biorbd.Biorbd(model_path)
 
         # Load the inhouse model data along with the data used to compute the kinematics
@@ -431,7 +467,7 @@ class BiorbdKinematicsData(KinematicsData):
         heel_velocity: np.ndarray = np.linalg.norm(derivative(heel_data, self.frame_rate()), axis=0)
         mid_swing_peaks = find_peaks(
             heel_velocity,
-            height=heel_velocity.max() * maximum_peak_threshold,
+            height=np.nanmax(heel_velocity) * maximum_peak_threshold,
             distance=int(expected_cycle_frame_count // 2),
         )[0]
 
@@ -528,12 +564,8 @@ class BiorbdKinematicsData(KinematicsData):
         com_velocity: np.ndarray = np.linalg.norm(derivative(center_of_mass_data, frame_rate=self.frame_rate()), axis=0)
 
         # Two peaks are expected (as it is absolute velocity), one for the squat and one for the standing up
-        squat_peaks = find_peaks(com_velocity, height=com_velocity.max() * 0.5, distance=10)[0]
-        if len(squat_peaks) != 2:
-            raise ValueError(
-                f"Expected 2 peaks in the center of mass velocity, but found {len(squat_peaks)}. Peaks found at indices: {squat_peaks}"
-            )
-        peak = squat_peaks[1]
+        squat_peaks = find_peaks(com_velocity, height=com_velocity.max() * 0.15, distance=15)[0]
+        peak = squat_peaks[-1]
 
         # Starting is when the squat is over
         start_index = find_first_below_threshold(
@@ -569,7 +601,7 @@ class MomentumHealthGlbKinematicsData(KinematicsData):
         self._data = data
         super().__init__(
             original_frame_rate=30.0,
-            last_frame_index=next(iter(data.values())).shape[0],
+            last_frame_index=next(iter(data.values())).shape[0] - 1,
             trial_type=trial_type,
         )
 
@@ -740,7 +772,7 @@ class MomentumHealthCsvKinematicsData(KinematicsData):
         self._precomputed_metrics = precomputed_metrics
         super().__init__(
             original_frame_rate=60.0,
-            last_frame_index=frame_count,
+            last_frame_index=frame_count - 1,
             trial_type=trial_type,
         )
 
@@ -755,8 +787,10 @@ class MomentumHealthCsvKinematicsData(KinematicsData):
         data_slice = self._data_slice(resampled=resampled)
         if joint == Joint.KNEE:
             return self._data[knee_name][data_slice] * np.pi / 180.0 - np.pi  # The data are 90 degrees offset
+        elif joint == Joint.TRUNK:
+            return self._data["trunk_lean_sagittal_deg"][data_slice] * np.pi / 180.0
         else:
-            raise ValueError("Unsupported joint. Only KNEE is currently supported.")
+            raise ValueError("Unsupported joint. Only KNEE and TRUNK are currently supported.")
 
     def points(self, point: Point, resampled: bool = True) -> np.ndarray:
         data_slice = self._data_slice(resampled=resampled)
@@ -828,6 +862,9 @@ class MomentumHealthCsvKinematicsData(KinematicsData):
 
     @classmethod
     def from_file(cls, csv_path: str, trial_type: TrialType) -> MomentumHealthCsvKinematicsData:
+        if csv_path is None:
+            return EmptyKinematicsData(trial_type=trial_type)
+
         with open(csv_path, "r") as f:
             lines = f.readlines()
 
@@ -907,7 +944,7 @@ class PigKinematicsData(KinematicsData):
         self._data = data
         super().__init__(
             original_frame_rate=frame_rate,
-            last_frame_index=next(iter(data.values())).shape[1],
+            last_frame_index=next(iter(data.values())).shape[1] - 1,
             trial_type=trial_type,
         )
 

@@ -4,6 +4,7 @@ import numpy as np
 
 from .kinematics_data import (
     BiorbdKinematicsData,
+    EmptyKinematicsData,
     MomentumHealthCsvKinematicsData,
     PigKinematicsData,
     Joint,
@@ -38,7 +39,6 @@ class Metrics:
         )
 
         # Show metrics
-        trial_indices = {}
         if trial_type == TrialType.SWAY:
             scalar_metrics_to_fetch = [
                 [
@@ -86,11 +86,12 @@ class Metrics:
             # TODO
             inhouse_trial_indices = {
                 subject: {
-                    side: [data.indices() for data in metrics[subject][f"{side.name}_cycles"]["Inhouse"]]
+                    side: [data.indices() for data in metrics[subject][f"sway"]["Inhouse"] if data is not None]
                     for side in [Side.LEFT, Side.RIGHT]
                 }
                 for subject in metrics.keys()
             }
+            joint_angles_to_fetch = [Joint.TRUNK]
 
         elif trial_type == TrialType.GAIT:
             scalar_metrics_to_fetch = [
@@ -115,7 +116,6 @@ class Metrics:
                 for metric in scalar_metrics_to_fetch
             }
 
-            # TODO
             inhouse_trial_indices = {
                 subject: {
                     side: [data.indices() for data in metrics[subject][f"{side.name}_cycles"]["Inhouse"]]
@@ -123,11 +123,11 @@ class Metrics:
                 }
                 for subject in metrics.keys()
             }
+            joint_angles_to_fetch = [Joint.KNEE]
 
         else:
             raise ValueError(f"Unsupported trial type: {trial_type}")
 
-        joints_to_fetch = [Joint.KNEE]
         mean_angles_metrics = {
             joint: {
                 side: {
@@ -147,7 +147,7 @@ class Metrics:
                 }
                 for side in [Side.LEFT, Side.RIGHT]
             }
-            for joint in joints_to_fetch
+            for joint in joint_angles_to_fetch
         }
 
         return mean_scalar_metrics, mean_angles_metrics
@@ -156,6 +156,9 @@ class Metrics:
 def _cut_kinematics_data(
     kinematics_data: KinematicsData, joint: Joint, side: Side, indices_list: list[tuple[int, int]], to_degrees: bool
 ) -> np.ndarray:
+    if isinstance(kinematics_data, EmptyKinematicsData):
+        return np.ndarray((0, 1000))
+
     raw_data = kinematics_data.angles(joint=joint, side=side)
     if to_degrees:
         raw_data = np.degrees(raw_data)
@@ -227,27 +230,39 @@ def _get_trials_metrics(
             }
 
             # Align the data together
-            KinematicsData.perform_align_kinematics_data(all_data["Momentum Health A"], all_data["Momentum Health B"])
-            KinematicsData.perform_align_kinematics_data(all_data["Inhouse"], all_data["Momentum Health A"])
+            KinematicsData.perform_align_kinematics_data(
+                all_data["Momentum Health A"], all_data["Momentum Health B"], show_plot=True
+            )
+            reference = (
+                all_data["Momentum Health B"]
+                if isinstance(all_data["Momentum Health A"], EmptyKinematicsData)
+                else all_data["Momentum Health A"]
+            )
+            KinematicsData.perform_align_kinematics_data(all_data["Inhouse"], reference, show_plot=True)
             # all_data["Plug-in Gait"].duplicate_alignment_data_from(reference=all_data["Inhouse"])
 
             metrics["trial"] = all_data
             if show_plot:
-                for i, data_type in enumerate(all_data.keys()):
-                    all_data[data_type].plot(
-                        joint=Joint.KNEE,
-                        side=Side.LEFT,
-                        title="Knee Angles",
-                        label=data_type,
-                        show_now=(i == len(all_data) - 1),
-                    )
+                if trial_type == TrialType.SWAY:
+                    pass
+                elif trial_type == TrialType.GAIT:
+                    for i, data_type in enumerate(all_data.keys()):
+                        all_data[data_type].plot(
+                            joint=Joint.KNEE,
+                            side=Side.LEFT,
+                            title="Knee Angles",
+                            label=data_type,
+                            show_now=(i == len(all_data) - 1),
+                        )
+                else:
+                    raise ValueError(f"Unsupported trial type: {trial_type}")
 
             if trial_type == TrialType.SWAY:
                 if "sway" not in metrics:
                     metrics["sway"] = {data_type: [] for data_type in all_data.keys()}
 
                 for data_type in all_data.keys():
-                    metrics["sway"][data_type].extend(all_data[data_type].extract_sway_trial(show_plot=show_plot))
+                    metrics["sway"][data_type].append(all_data[data_type].extract_sway_trial(show_plot=show_plot))
 
             elif trial_type == TrialType.GAIT:
                 for side in [Side.LEFT, Side.RIGHT]:
@@ -268,6 +283,9 @@ def _get_trials_metrics(
 
 
 def _load_single_file(data_folder: Path, filter: str, expected_extension: str) -> Path:
+    if filter == "NONE":
+        return None
+
     files = list(data_folder.glob(f"*{filter}*.{expected_extension}"))
     if len(files) != 1:
         raise ValueError(

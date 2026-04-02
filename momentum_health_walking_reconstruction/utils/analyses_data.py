@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from enum import Enum, auto
 
 import numpy as np
@@ -8,6 +8,13 @@ from .math import derivative
 
 class AnalysesData(ABC):
     pass
+
+    @abstractmethod
+    def indices(self) -> tuple[int, int]:
+        """
+        Returns the starting and ending indices of the data in the original time series.
+        """
+        pass
 
 
 class MeanSpeedAlgorithm(Enum):
@@ -135,6 +142,11 @@ class PreComputedGaitCycle(AnalysesData):
         self._stride_length = stride_length
         self._starting_index_in_data = starting_index_in_data
 
+    def indices(self) -> tuple[int, int]:
+        raise ValueError(
+            "PreComputedGaitCycle does not have a well-defined range of indices in the original time series."
+        )
+
     def gait_speed(self, exclude_vertical: bool = False) -> np.ndarray:
         if exclude_vertical:
             raise ValueError("Vertical component is not available for PreComputedGaitCycle. Cannot exclude vertical.")
@@ -194,6 +206,9 @@ class SwayTrial(AnalysesData):
         self._frame_rate = frame_rate
         self._starting_index_in_data = starting_index_in_data
 
+    def indices(self) -> tuple[int, int]:
+        return self._starting_index_in_data, self._starting_index_in_data + self._center_of_mass_data.shape[1]
+
     def length(self, direction: SwayDirection) -> float:
         if direction == SwayDirection.ANTERO_POSTERIOR:
             data_slice = 0
@@ -209,7 +224,7 @@ class SwayTrial(AnalysesData):
     def mean_length_from_trials(trials: list[SwayTrial], direction: SwayDirection) -> float:
         if not trials:
             return np.nan
-        return np.mean([trial.length(direction=direction) for trial in trials])
+        return np.mean([trial.length(direction=direction) for trial in trials if trial is not None])
 
     def amplitude(self, direction: SwayDirection) -> float:
         if direction == SwayDirection.ANTERO_POSTERIOR:
@@ -226,7 +241,7 @@ class SwayTrial(AnalysesData):
     def mean_amplitude_from_trials(trials: list[SwayTrial], direction: SwayDirection) -> float:
         if not trials:
             return np.nan
-        return np.mean([trial.amplitude(direction=direction) for trial in trials])
+        return np.mean([trial.amplitude(direction=direction) for trial in trials if trial is not None])
 
     def velocity(self, direction: SwayDirection) -> np.ndarray:
         if direction == SwayDirection.ANTERO_POSTERIOR:
@@ -246,7 +261,7 @@ class SwayTrial(AnalysesData):
     def mean_mean_velocity_from_trials(trials: list[SwayTrial], direction: SwayDirection) -> float:
         if not trials:
             return np.nan
-        return np.mean([trial.mean_velocity(direction=direction) for trial in trials])
+        return np.mean([trial.mean_velocity(direction=direction) for trial in trials if trial is not None])
 
     def confidence_ellipse(self, confidence_level: float = 0.95) -> tuple[np.ndarray, np.ndarray]:
         # Compute the covariance matrix of the center of mass data
@@ -278,7 +293,9 @@ class SwayTrial(AnalysesData):
     def mean_confidence_ellipse_area_from_trials(trials: list[SwayTrial], confidence_level: float = 0.95) -> float:
         if not trials:
             return np.nan
-        return np.mean([trial.confidence_ellipse_area(confidence_level=confidence_level) for trial in trials])
+        return np.mean(
+            [trial.confidence_ellipse_area(confidence_level=confidence_level) for trial in trials if trial is not None]
+        )
 
 
 class PreComputedSwayTrial(SwayTrial):

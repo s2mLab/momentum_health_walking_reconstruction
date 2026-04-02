@@ -15,9 +15,9 @@ def main():
     subject_names = os.getenv("SUBJECT_NAMES", "").split(",")
     data_matching = json.load(open(os.getenv("DATA_MATCHING_JSON")))
 
-    trial_category = os.getenv("TRIAL_CATEGORY")
+    trial_category = os.getenv("TRIAL_TYPE")
     if trial_category is None:
-        raise ValueError(f"Environment variable 'TRIAL_CATEGORY' is not set.")
+        raise ValueError(f"Environment variable 'TRIAL_TYPE' is not set.")
 
     trial_type = data_matching["trial_types"][trial_category]["category"]
     if trial_type == "gait":
@@ -41,7 +41,7 @@ def main():
         trial_type=trial_type,
         trial_names=trial_names,
         data_matching=data_matching["data"],
-        show_plot=False,
+        show_plot=True,
     )
 
     # Show metrics
