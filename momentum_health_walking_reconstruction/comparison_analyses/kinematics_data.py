@@ -12,7 +12,7 @@ from scipy.spatial.transform import Rotation
 from tqdm import tqdm
 from scipy.signal import correlate, find_peaks
 
-from ..utils.math import find_first_below_threshold, derivative
+from ..utils.math import find_first_below_threshold, derivative, nanunwrap
 
 if TYPE_CHECKING:
     from ..utils.analyses_data import GaitCycle, SwayTrial
@@ -30,9 +30,10 @@ class Side(Enum):
 
 class Joint(Enum):
     TRUNK = auto()
+    PELVIS = auto()
     HIP = auto()
     KNEE = auto()
-    # ANKLE = auto()
+    ANKLE = auto()
 
 
 class Point(Enum):
@@ -53,6 +54,9 @@ class KinematicsData(ABC):
         self._trial_type = trial_type
 
     def duplicate_alignment_data_from(self, reference: KinematicsData):
+        if isinstance(self, EmptyKinematicsData) or isinstance(reference, EmptyKinematicsData):
+            return
+
         if (
             self._original_frame_rate != reference._original_frame_rate
             or self._trial_type != reference._trial_type
@@ -174,7 +178,7 @@ class KinematicsData(ABC):
         plt.legend()
         plt.title("Joint angles")
         plt.xlabel("Time (s)")
-        plt.ylabel("Angle (degrees)")
+        plt.ylabel("Angle (radian)")
 
         if show_now:
             plt.show()
@@ -297,16 +301,33 @@ class BiorbdKinematicsData(KinematicsData):
         else:
             raise ValueError("Invalid side. Must be Side.LEFT or Side.RIGHT.")
 
-        if joint == Joint.KNEE:
-            joint_prefix = "Shank_RotX"
-        elif joint == Joint.TRUNK:
+        if joint == Joint.TRUNK:
             joint_prefix = "Trunk_RotX"
             side_prefix = ""  # The trunk does not have a side prefix
+            multiplier = 1
+            offset = 0
+        elif joint == Joint.PELVIS:
+            joint_prefix = "Pelvis_RotX"
+            side_prefix = ""  # The pelvis does not have a side prefix
+            multiplier = 1
+            offset = 0
+        elif joint == Joint.HIP:
+            joint_prefix = "Thigh_RotX"
+            multiplier = 1  # Make Flexion positive
+            offset = 0
+        elif joint == Joint.KNEE:
+            joint_prefix = "Shank_RotX"
+            multiplier = -1  # Make Flexion positive
+            offset = 0
+        elif joint == Joint.ANKLE:
+            joint_prefix = "Foot_RotX"
+            multiplier = -1  # Make Dorsiflexion positive
+            offset = np.pi / 2
         else:
-            raise ValueError("Unsupported joint. Only KNEE and TRUNK are currently supported.")
+            raise ValueError("Unsupported joint. Only TRUNK, PELVIS, HIP, KNEE, and ANKLE are currently supported.")
 
         joint_index = self._model.dof_names.index(f"{side_prefix}{joint_prefix}")
-        return self._get_kinematics(resampled=resampled)[joint_index, :]
+        return self._get_kinematics(resampled=resampled)[joint_index, :] * multiplier + offset
 
     def points(self, point: Point, resampled: bool = True) -> np.ndarray:
         if point == Point.CENTER_OF_MASS:
@@ -777,19 +798,39 @@ class MomentumHealthCsvKinematicsData(KinematicsData):
 
     def angles(self, joint: Joint, side: Side, resampled: bool = True) -> np.ndarray:
         if side == Side.LEFT:
-            knee_name = "knee_flexion_deg_L"
+            side_suffix = "_L"
         elif side == Side.RIGHT:
-            knee_name = "knee_flexion_deg_R"
+            side_suffix = "_R"
         else:
             raise ValueError("Invalid side. Must be Side.LEFT or Side.RIGHT.")
 
         data_slice = self._data_slice(resampled=resampled)
-        if joint == Joint.KNEE:
-            return self._data[knee_name][data_slice] * np.pi / 180.0 - np.pi  # The data are 90 degrees offset
-        elif joint == Joint.TRUNK:
-            return self._data["trunk_lean_sagittal_deg"][data_slice] * np.pi / 180.0
+        if joint == Joint.TRUNK:
+            joint_name = "trunk_lean_sagittal_deg"
+            side_suffix = ""  # The trunk does not have a side suffix
+            multiplier = 1
+            offset = 0
+        elif joint == Joint.PELVIS:
+            joint_name = "pelvis_rotation_deg"
+            side_suffix = ""  # The pelvis does not have a side suffix
+            multiplier = 1
+            offset = 0
+        elif joint == Joint.HIP:
+            joint_name = "hip_flexion_deg"
+            multiplier = 1  # Make Flexion positive
+            offset = 0
+        elif joint == Joint.KNEE:
+            joint_name = "knee_flexion_deg"
+            multiplier = -1  # Make Flexion positive
+            offset = -180  # The data are 180 degrees offset
+        elif joint == Joint.ANKLE:
+            joint_name = "ankle_dorsiflexion_deg"
+            multiplier = 1  # Make Flexion positive
+            offset = 0
         else:
-            raise ValueError("Unsupported joint. Only KNEE and TRUNK are currently supported.")
+            raise ValueError("Unsupported joint. Only TRUNK, PELVIS, HIP, KNEE, and ANKLE are currently supported.")
+
+        return nanunwrap((self._data[joint_name + side_suffix][data_slice] + offset) * np.pi / 180.0 * multiplier)
 
     def points(self, point: Point, resampled: bool = True) -> np.ndarray:
         data_slice = self._data_slice(resampled=resampled)
@@ -948,8 +989,6 @@ class PigKinematicsData(KinematicsData):
         )
 
     def angles(self, joint: Joint, side: Side, resampled: bool = True) -> np.ndarray:
-        raise NotImplementedError("Joint angle data is not yet available in the Pig C3D file.")
-
         if side == Side.LEFT:
             side_prefix = "L"
         elif side == Side.RIGHT:
@@ -957,35 +996,113 @@ class PigKinematicsData(KinematicsData):
         else:
             raise ValueError("Invalid side. Must be Side.LEFT or Side.RIGHT.")
 
-        if joint == Joint.KNEE:
+        if joint == Joint.TRUNK:
+            joint_prefix = "ThoraxAngles"
+        elif joint == Joint.PELVIS:
+            joint_prefix = "PelvisAngles"
+        elif joint == Joint.HIP:
+            joint_prefix = "HipAngles"
+        elif joint == Joint.KNEE:
             joint_prefix = "KneeAngles"
+        elif joint == Joint.ANKLE:
+            joint_prefix = "AnkleAngles"
         else:
-            raise ValueError("Unsupported joint. Only KNEE is currently supported.")
+            raise ValueError("Unsupported joint. Only KNEE and TRUNK are currently supported.")
 
         data_slice = self._data_slice(resampled=resampled)
-        return self._data[f"{side_prefix}{joint_prefix}"][data_slice, :]
+        data = nanunwrap((self._data[f"{side_prefix}{joint_prefix}"][0, data_slice]) * np.pi / 180.0)
+        if joint == Joint.KNEE:
+            if np.nanmean(data) > np.pi - 0.2:
+                data = data - np.pi
+            elif np.nanmean(data) < -np.pi + 0.2:
+                data = data + np.pi
+        elif joint == Joint.ANKLE:
+            data = -1 * data + np.pi / 2
+        return data
 
     def points(self, point: Point, resampled: bool = True) -> np.ndarray:
-        raise NotImplementedError("Point data is not available in the Pig C3D file.")
+        data_slice = self._data_slice(resampled=resampled)
+        if point == Point.CENTER_OF_MASS:
+            return (
+                np.mean([self._data[point_name] for point_name in ["LASI", "RASI", "LPSI", "RPSI"]], axis=0)[
+                    :, data_slice
+                ]
+                / 1000.0
+            )
+        elif point == Point.LEFT_HEEL:
+            return self._data["LHEE"][:, data_slice] / 1000.0
+        elif point == Point.RIGHT_HEEL:
+            return self._data["RHEE"][:, data_slice] / 1000.0
+        elif point == Point.LEFT_TOE:
+            return self._data["LTOE"][:, data_slice] / 1000.0
+        elif point == Point.RIGHT_TOE:
+            return self._data["RTOE"][:, data_slice] / 1000.0
+        else:
+            raise ValueError(
+                "Unsupported point. Only CENTER_OF_MASS, LEFT_HEEL, RIGHT_HEEL, LEFT_TOE, and RIGHT_TOE are currently supported."
+            )
 
     def extract_gait_cycles(self, side: Side, show_plot: bool = False) -> list["GaitCycle"]:
-        raise NotImplementedError(
-            "Gait cycle extraction is not supported for the Pig C3D data since it is not a walking trial."
+        return BiorbdKinematicsData.extract_gait_cycles(self, side=side, show_plot=show_plot)
+
+    def _get_gait_cycle_indices(
+        self,
+        expect_cycle_duration: float,
+        heel_data: np.ndarray,
+        toe_data: np.ndarray,
+        maximum_peak_threshold: float,
+        minimum_velocity_threshold: float,
+        minimum_zeros_frame: int,
+        show_plot: bool,
+        side: Side,
+    ) -> list[tuple[int, int, int]]:
+        return BiorbdKinematicsData._get_gait_cycle_indices(
+            self,
+            expect_cycle_duration=expect_cycle_duration,
+            heel_data=heel_data,
+            toe_data=toe_data,
+            maximum_peak_threshold=maximum_peak_threshold,
+            minimum_velocity_threshold=minimum_velocity_threshold,
+            minimum_zeros_frame=minimum_zeros_frame,
+            show_plot=show_plot,
+            side=side,
+        )
+
+    def _get_sway_trial_indices(
+        self,
+        expected_duration: float,
+        center_of_mass_data: np.ndarray,
+        minimum_velocity_threshold: float,
+        minimum_zeros_frame: int,
+        show_plot: bool,
+    ) -> tuple[int, int]:
+        return BiorbdKinematicsData._get_sway_trial_indices(
+            self,
+            expected_duration=expected_duration,
+            center_of_mass_data=center_of_mass_data,
+            minimum_velocity_threshold=minimum_velocity_threshold,
+            minimum_zeros_frame=minimum_zeros_frame,
+            show_plot=show_plot,
         )
 
     def extract_sway_trial(self, show_plot: bool = False) -> "SwayTrial":
-        raise NotImplementedError(
-            "Sway trial extraction is not supported for the Pig C3D data since it is not a sway trial."
-        )
+        return BiorbdKinematicsData.extract_sway_trial(self, show_plot=show_plot)
 
     @classmethod
-    def from_file(cls, c3d_path: str, trial_type: TrialType) -> PigKinematicsData:
+    def from_file(cls, c3d_path: str, min_last_frame_index: int, trial_type: TrialType) -> PigKinematicsData:
+        if c3d_path is None:
+            return EmptyKinematicsData(trial_type=trial_type)
+
         # Load the kinematics stored in the C3D file
         c3d_data = ezc3d.c3d(str(c3d_path))
 
+        first_frame = c3d_data.header["points"]["first_frame"]
+        data_last_frame = c3d_data.header["points"]["last_frame"]
+        expected_last_frame = max(data_last_frame, min_last_frame_index)
         data = {}
         for col_index, point_name in enumerate(c3d_data.parameters["POINT"]["LABELS"]["value"]):
-            data[point_name] = c3d_data.data["points"][:3, col_index, :]
+            data[point_name] = np.ndarray((3, expected_last_frame + 1)) * np.nan
+            data[point_name][:, first_frame : data_last_frame + 1] = c3d_data.data["points"][:3, col_index, :]
 
         frame_rate = c3d_data.header["points"]["frame_rate"]
         return cls(data=data, frame_rate=frame_rate, trial_type=trial_type)

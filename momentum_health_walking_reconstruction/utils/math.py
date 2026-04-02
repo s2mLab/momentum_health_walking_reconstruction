@@ -1,6 +1,36 @@
 import numpy as np
 
 
+def nanunwrap(data: np.ndarray) -> np.ndarray:
+    """
+    Unwrap the data while ignoring NaN values at the beginning of the trial. The unwrapping assumes 1d data
+
+    Parameters
+    ----------
+    data : np.ndarray
+        The input data to unwrap, which may contain NaN values.
+
+    Returns
+    -------
+    np.ndarray
+        The unwrapped data, with NaN values preserved in their original positions.
+    """
+    if data.ndim != 1:
+        raise ValueError("Input data must be a 1D array.")
+
+    # Find the index of the first non-NaN value
+    first_valid_index = np.where(~np.isnan(data))[0]
+    if len(first_valid_index) == 0:
+        # If all values are NaN, return the original data
+        return data
+    first_valid_index = first_valid_index[0]
+    # Unwrap the data starting from the first valid index
+    unwrapped_data = np.copy(data)
+    unwrapped_data[first_valid_index:] = np.unwrap(data[first_valid_index:])
+
+    return unwrapped_data
+
+
 def derivative(data: np.ndarray, frame_rate: int) -> np.ndarray:
     return np.gradient(data, 1 / frame_rate, axis=1, edge_order=2)
 

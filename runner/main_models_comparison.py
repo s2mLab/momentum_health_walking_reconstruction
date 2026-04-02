@@ -41,7 +41,7 @@ def main():
         trial_type=trial_type,
         trial_names=trial_names,
         data_matching=data_matching["data"],
-        show_plot=True,
+        show_plot=False,
     )
 
     # Show metrics

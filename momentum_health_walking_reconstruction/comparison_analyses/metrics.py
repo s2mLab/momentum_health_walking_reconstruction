@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -13,6 +14,8 @@ from .kinematics_data import (
     Side,
 )
 from ..utils.analyses_data import GaitCycle, GaitMetrics, SwayDirection, SwayMetrics, SwayTrial
+
+_logger = logging.getLogger(__name__)
 
 
 class Metrics:
@@ -83,7 +86,7 @@ class Metrics:
                 }
                 for metric in scalar_metrics_to_fetch
             }
-            # TODO
+
             inhouse_trial_indices = {
                 subject: {
                     side: [data.indices() for data in metrics[subject][f"sway"]["Inhouse"] if data is not None]
@@ -123,7 +126,7 @@ class Metrics:
                 }
                 for subject in metrics.keys()
             }
-            joint_angles_to_fetch = [Joint.KNEE]
+            joint_angles_to_fetch = [Joint.PELVIS, Joint.HIP, Joint.KNEE, Joint.ANKLE]
 
         else:
             raise ValueError(f"Unsupported trial type: {trial_type}")
@@ -167,6 +170,12 @@ def _cut_kinematics_data(
     cut_data = []
     new_frame_count = 1000
     for start_index, end_index in indices_list:
+        if end_index > len(raw_time_vector):
+            _logger.warning(
+                f"End index {end_index} is out of bounds for the time vector of length {len(raw_time_vector)}. Skipping this trial segment."
+            )
+            continue
+
         cut_data.append(
             np.interp(
                 np.linspace(raw_time_vector[start_index], raw_time_vector[end_index - 1], num=new_frame_count),
@@ -223,23 +232,24 @@ def _get_trials_metrics(
                     c3d_path=_load_single_file(data_base_folder / "inhouse_data" / subject, inhouse_filter, "c3d"),
                     trial_type=trial_type,
                 ),
-                # "Plug-in Gait": PigKinematicsData.from_file(
-                #     c3d_path=_load_single_file(data_base_folder / "pig_data" / subject, pig_filter, "c3d"),
-                #     trial_type=trial_type,
-                # ),
             }
+            all_data["Plug-in Gait"] = PigKinematicsData.from_file(
+                c3d_path=_load_single_file(data_base_folder / "pig_data" / subject, pig_filter, "c3d"),
+                min_last_frame_index=all_data["Inhouse"].original_last_frame_index(resampled=False),
+                trial_type=trial_type,
+            )
 
             # Align the data together
             KinematicsData.perform_align_kinematics_data(
-                all_data["Momentum Health A"], all_data["Momentum Health B"], show_plot=True
+                all_data["Momentum Health A"], all_data["Momentum Health B"], show_plot=show_plot
             )
             reference = (
                 all_data["Momentum Health B"]
                 if isinstance(all_data["Momentum Health A"], EmptyKinematicsData)
                 else all_data["Momentum Health A"]
             )
-            KinematicsData.perform_align_kinematics_data(all_data["Inhouse"], reference, show_plot=True)
-            # all_data["Plug-in Gait"].duplicate_alignment_data_from(reference=all_data["Inhouse"])
+            KinematicsData.perform_align_kinematics_data(all_data["Inhouse"], reference, show_plot=show_plot)
+            all_data["Plug-in Gait"].duplicate_alignment_data_from(reference=all_data["Inhouse"])
 
             metrics["trial"] = all_data
             if show_plot:
