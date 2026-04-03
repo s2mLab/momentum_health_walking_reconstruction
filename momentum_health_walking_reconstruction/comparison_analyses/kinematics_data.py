@@ -26,6 +26,7 @@ class TrialType(Enum):
 class Side(Enum):
     LEFT = auto()
     RIGHT = auto()
+    NOT_SIDED = auto()
 
 
 class Joint(Enum):
@@ -298,28 +299,34 @@ class BiorbdKinematicsData(KinematicsData):
             side_prefix = "L"
         elif side == Side.RIGHT:
             side_prefix = "R"
+        elif side == Side.NOT_SIDED:
+            side_prefix = ""
         else:
-            raise ValueError("Invalid side. Must be Side.LEFT or Side.RIGHT.")
+            raise ValueError("Invalid side. Must be Side.LEFT, Side.RIGHT, or Side.NOT_SIDED.")
 
         if joint == Joint.TRUNK:
             joint_prefix = "Trunk_RotX"
-            side_prefix = ""  # The trunk does not have a side prefix
             multiplier = 1
             offset = 0
         elif joint == Joint.PELVIS:
             joint_prefix = "Pelvis_RotX"
-            side_prefix = ""  # The pelvis does not have a side prefix
             multiplier = 1
             offset = 0
         elif joint == Joint.HIP:
+            if side != Side.LEFT and side != Side.RIGHT:
+                raise ValueError("Hip joint must be sided. Use Side.LEFT or Side.RIGHT.")
             joint_prefix = "Thigh_RotX"
             multiplier = 1  # Make Flexion positive
             offset = 0
         elif joint == Joint.KNEE:
+            if side != Side.LEFT and side != Side.RIGHT:
+                raise ValueError("Knee joint must be sided. Use Side.LEFT or Side.RIGHT.")
             joint_prefix = "Shank_RotX"
             multiplier = -1  # Make Flexion positive
             offset = 0
         elif joint == Joint.ANKLE:
+            if side != Side.LEFT and side != Side.RIGHT:
+                raise ValueError("Ankle joint must be sided. Use Side.LEFT or Side.RIGHT.")
             joint_prefix = "Foot_RotX"
             multiplier = -1  # Make Dorsiflexion positive
             offset = np.pi / 2
@@ -801,8 +808,10 @@ class MomentumHealthCsvKinematicsData(KinematicsData):
             side_suffix = "_L"
         elif side == Side.RIGHT:
             side_suffix = "_R"
+        elif side == Side.NOT_SIDED:
+            side_suffix = ""
         else:
-            raise ValueError("Invalid side. Must be Side.LEFT or Side.RIGHT.")
+            raise ValueError("Invalid side. Must be Side.LEFT, Side.RIGHT, or Side.NOT_SIDED.")
 
         data_slice = self._data_slice(resampled=resampled)
         if joint == Joint.TRUNK:
@@ -816,14 +825,20 @@ class MomentumHealthCsvKinematicsData(KinematicsData):
             multiplier = 1
             offset = 0
         elif joint == Joint.HIP:
+            if side != Side.LEFT and side != Side.RIGHT:
+                raise ValueError("Hip joint must be sided. Use Side.LEFT or Side.RIGHT.")
             joint_name = "hip_flexion_deg"
             multiplier = 1  # Make Flexion positive
             offset = 0
         elif joint == Joint.KNEE:
+            if side != Side.LEFT and side != Side.RIGHT:
+                raise ValueError("Knee joint must be sided. Use Side.LEFT or Side.RIGHT.")
             joint_name = "knee_flexion_deg"
             multiplier = -1  # Make Flexion positive
             offset = -180  # The data are 180 degrees offset
         elif joint == Joint.ANKLE:
+            if side != Side.LEFT and side != Side.RIGHT:
+                raise ValueError("Ankle joint must be sided. Use Side.LEFT or Side.RIGHT.")
             joint_name = "ankle_dorsiflexion_deg"
             multiplier = 1  # Make Flexion positive
             offset = 0
@@ -993,25 +1008,39 @@ class PigKinematicsData(KinematicsData):
             side_prefix = "L"
         elif side == Side.RIGHT:
             side_prefix = "R"
+        elif side == Side.NOT_SIDED:
+            side_prefix = ""
         else:
-            raise ValueError("Invalid side. Must be Side.LEFT or Side.RIGHT.")
+            raise ValueError("Invalid side. Must be Side.LEFT, Side.RIGHT, or Side.NOT_SIDED.")
 
         if joint == Joint.TRUNK:
+            if side == Side.NOT_SIDED:
+                side_prefix = "L"  # The values have side in the file, but R and L are identical
             joint_prefix = "ThoraxAngles"
         elif joint == Joint.PELVIS:
+            if side == Side.NOT_SIDED:
+                side_prefix = "L"  # The values have side in the file, but R and L are identical
             joint_prefix = "PelvisAngles"
         elif joint == Joint.HIP:
+            if side == Side.NOT_SIDED:
+                raise ValueError("Hip joint must be sided. Use Side.LEFT or Side.RIGHT.")
             joint_prefix = "HipAngles"
         elif joint == Joint.KNEE:
+            if side == Side.NOT_SIDED:
+                raise ValueError("Knee joint must be sided. Use Side.LEFT or Side.RIGHT.")
             joint_prefix = "KneeAngles"
         elif joint == Joint.ANKLE:
+            if side == Side.NOT_SIDED:
+                raise ValueError("Ankle joint must be sided. Use Side.LEFT or Side.RIGHT.")
             joint_prefix = "AnkleAngles"
         else:
             raise ValueError("Unsupported joint. Only KNEE and TRUNK are currently supported.")
 
         data_slice = self._data_slice(resampled=resampled)
         data = nanunwrap((self._data[f"{side_prefix}{joint_prefix}"][0, data_slice]) * np.pi / 180.0)
-        if joint == Joint.KNEE:
+        if joint == Joint.HIP:
+            data += 0
+        elif joint == Joint.KNEE:
             if np.nanmean(data) > np.pi - 0.2:
                 data = data - np.pi
             elif np.nanmean(data) < -np.pi + 0.2:

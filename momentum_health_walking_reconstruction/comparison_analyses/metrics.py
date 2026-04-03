@@ -87,10 +87,11 @@ class Metrics:
                 for metric in scalar_metrics_to_fetch
             }
 
+            sides = [Side.NOT_SIDED]
             inhouse_trial_indices = {
                 subject: {
                     side: [data.indices() for data in metrics[subject][f"sway"]["Inhouse"] if data is not None]
-                    for side in [Side.LEFT, Side.RIGHT]
+                    for side in sides
                 }
                 for subject in metrics.keys()
             }
@@ -119,10 +120,11 @@ class Metrics:
                 for metric in scalar_metrics_to_fetch
             }
 
+            sides = [Side.LEFT, Side.RIGHT]
             inhouse_trial_indices = {
                 subject: {
                     side: [data.indices() for data in metrics[subject][f"{side.name}_cycles"]["Inhouse"]]
-                    for side in [Side.LEFT, Side.RIGHT]
+                    for side in sides
                 }
                 for subject in metrics.keys()
             }
@@ -136,19 +138,23 @@ class Metrics:
                 side: {
                     data_type: {
                         subject: [
-                            _cut_kinematics_data(
-                                kinematics_data=metrics[subject]["trial"][data_type],
-                                joint=joint,
-                                side=side,
-                                indices_list=inhouse_trial_indices[subject][side],
-                                to_degrees=True,
+                            (
+                                _cut_kinematics_data(
+                                    kinematics_data=metrics[subject]["trial"][data_type],
+                                    joint=joint,
+                                    side=side,
+                                    indices_list=inhouse_trial_indices[subject][side],
+                                    to_degrees=True,
+                                )
+                                if side in inhouse_trial_indices[subject]
+                                else np.ndarray((0, 1000))
                             )
                         ]
                         for subject in metrics.keys()
                     }
                     for data_type in data_types
                 }
-                for side in [Side.LEFT, Side.RIGHT]
+                for side in sides
             }
             for joint in joint_angles_to_fetch
         }

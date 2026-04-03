@@ -69,7 +69,7 @@
                 "DATA_MATCHING_JSON": "<Path to your data matching json file>",
                 "SUBJECT_NAMES": "comma,separated,subject,names",
                 "RESULTS_BASE_FOLDER": "<Path to your result folder>",
-                "TRIAL_CATEGORY": "<filter name>", // filter that matches the trial types keys in the data matching json file
+                "TRIAL_TYPE": "<filter name>", // filter that matches the trial types keys in the data matching json file
             },
         },
     ]

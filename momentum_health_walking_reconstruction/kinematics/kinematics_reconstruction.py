@@ -68,18 +68,22 @@ def _qld_inverse_kinematics(
             root_count = model.internal.nbRoot()
             q_init[root_count:] = 0
 
-        results.append(
-            optimize.least_squares(
-                objective_function,
-                q_init,
-                args=(model, frame),
-                method="lm",
-                xtol=1e-6,
-                ftol=1e-6,
-                gtol=1e-6,
-                max_nfev=1000,
-            ).x
-        )
+        if np.all(np.isnan(frame)):
+            results.append(q_init)
+            continue
+        else:
+            results.append(
+                optimize.least_squares(
+                    objective_function,
+                    q_init,
+                    args=(model, frame),
+                    method="lm",
+                    xtol=1e-6,
+                    ftol=1e-6,
+                    gtol=1e-6,
+                    max_nfev=1000,
+                ).x
+            )
 
         q_init = results[-1]
 
