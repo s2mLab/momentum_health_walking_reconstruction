@@ -29,9 +29,9 @@ class SwayDirection(Enum):
 
 
 class GaitMetrics(Enum):
-    GAIT_SPEED = auto()
-    STRIDE_LENGTH = auto()
-    STRIDE_TIME = auto()
+    GAIT_SPEED = "Gait Speed"
+    STRIDE_LENGTH = "Stride Length"
+    STRIDE_TIME = "Stride Time"
 
 
 class GaitCycle(AnalysesData):
@@ -188,11 +188,11 @@ class PreComputedGaitCycle(AnalysesData):
 
 
 class SwayMetrics(Enum):
-    AMPLITUDE_AP = auto()
-    AMPLITUDE_ML = auto()
-    LENGTH = auto()
-    VELOCITY = auto()
-    CONFIDENCE_ELLIPSE_AREA = auto()
+    AMPLITUDE_AP = "Amplitude Antero-Posterior"
+    AMPLITUDE_ML = "Amplitude Medio-Lateral"
+    LENGTH = "Length"
+    VELOCITY = "Velocity"
+    CONFIDENCE_ELLIPSE_AREA = "Confidence Ellipse Area"
 
 
 class SwayTrial(AnalysesData):

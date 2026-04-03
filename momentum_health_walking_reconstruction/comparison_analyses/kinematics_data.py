@@ -306,10 +306,12 @@ class BiorbdKinematicsData(KinematicsData):
 
         if joint == Joint.TRUNK:
             joint_prefix = "Trunk_RotX"
+            side_prefix = ""
             multiplier = 1
             offset = 0
         elif joint == Joint.PELVIS:
             joint_prefix = "Pelvis_RotX"
+            side_prefix = ""
             multiplier = 1
             offset = 0
         elif joint == Joint.HIP:

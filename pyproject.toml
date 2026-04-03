@@ -29,6 +29,7 @@ dependencies = [
     "scipy",
     "plotly",
     "lxml",
+    "spm1d",
 ]
 
 [project.optional-dependencies]
