@@ -136,16 +136,16 @@ class PreComputedGaitCycle(AnalysesData):
         double_stance_time: np.ndarray,
         stride_length: np.ndarray,
         starting_index_in_data: int,
+        ending_index_in_data: int,
     ):
         self._stride_time = stride_time
         self._double_stance_time = double_stance_time
         self._stride_length = stride_length
         self._starting_index_in_data = starting_index_in_data
+        self._ending_index_in_data = ending_index_in_data
 
     def indices(self) -> tuple[int, int]:
-        raise ValueError(
-            "PreComputedGaitCycle does not have a well-defined range of indices in the original time series."
-        )
+        return self._starting_index_in_data, self._ending_index_in_data
 
     def gait_speed(self, exclude_vertical: bool = False) -> np.ndarray:
         if exclude_vertical:

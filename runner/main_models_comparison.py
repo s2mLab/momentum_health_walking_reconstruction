@@ -4,7 +4,7 @@ from pathlib import Path
 import os
 
 import matplotlib.pyplot as plt
-from momentum_health_walking_reconstruction import TrialType, Metrics
+from momentum_health_walking_reconstruction import TrialType, Metrics, Joint
 import numpy as np
 from scipy import stats as scipy_stats
 import spm1d
@@ -52,8 +52,10 @@ def main():
     trial_type = data_matching["trial_types"][trial_category]["category"]
     if trial_type == "gait":
         trial_type = TrialType.GAIT
+        joint_angles_to_fetch = [Joint.PELVIS, Joint.HIP, Joint.KNEE, Joint.ANKLE]
     elif trial_type == "sway":
         trial_type = TrialType.SWAY
+        joint_angles_to_fetch = [Joint.TRUNK]
     else:
         raise ValueError(f"Could not determine trial type from file path: {trial_category}")
 
@@ -75,6 +77,7 @@ def main():
         subjects=subject_names,
         trial_type=trial_type,
         trial_names=trial_names,
+        joint_angles_to_fetch=joint_angles_to_fetch,
         data_matching=data_matching["data"],
         show_plot=False,
     )

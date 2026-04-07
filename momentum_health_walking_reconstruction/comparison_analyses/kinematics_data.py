@@ -884,6 +884,7 @@ class MomentumHealthCsvKinematicsData(KinematicsData):
                 length += self._precomputed_metrics["length_m"][step_index]
                 double_support_time += self._precomputed_metrics["double_support_sec"][step_index]
                 has_started_step = False
+                end_frame_index = self._precomputed_metrics["end_frame"][step_index]
 
                 out.append(
                     PreComputedGaitCycle(
@@ -891,6 +892,7 @@ class MomentumHealthCsvKinematicsData(KinematicsData):
                         double_stance_time=double_support_time,
                         stride_length=length,
                         starting_index_in_data=start_frame_index,
+                        ending_index_in_data=end_frame_index,
                     )
                 )
 
