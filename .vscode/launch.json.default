@@ -67,31 +67,10 @@
                 "DATA_BASE_FOLDER": "<Path to your data folder>",
                 "MODELS_BASE_FOLDER": "<Path to your models folder>",
                 "DATA_MATCHING_JSON": "<Path to your data matching json file>",
-                "SUBJECT_NAMES": "comma,separated,subject,names",
+                "SUBJECT_NAMES": "[comma,separated];[subject,names];[for,each,trial,category]", 
                 "RESULTS_BASE_FOLDER": "<Path to your result folder>",
                 "SAVE_FOLDER": "<Path to where to save the results>",
-                "TRIAL_TYPE": "<filter name>", // filter that matches the trial types keys in the data matching json file
-                "SCALAR_STATS_TO_COMPARE": "<comma,separated,data_types>", // Momentum Health A,Momentum Health B,Inhouse,Plug-in Gait
-                "TIME_SERIES_LIST_STATS_TO_COMPARE": "<[list,of,semi-colon];[comma,separated,data_types]>", // Momentum Health A,Momentum Health B,Inhouse,Plug-in Gait
-            },
-        },
-        {
-            "name": "Data cutter",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/runner/main_data_cutter.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "cwd": "${workspaceFolder}/runner/",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/external/biobuddy:${workspaceFolder}/external/bioviz",  // Change ":" for ";" on Windows
-                "DATA_BASE_FOLDER": "<Path to your data folder>",
-                "MODELS_BASE_FOLDER": "<Path to your models folder>",
-                "DATA_MATCHING_JSON": "<Path to your data matching json file>",
-                "SUBJECT_NAMES": "comma,separated,subject,names",
-                "RESULTS_BASE_FOLDER": "<Path to your result folder>",
-                "SAVE_FOLDER": "<Path to where to save the results>",
-                "TRIAL_TYPE": "<filter name>", // filter that matches the trial types keys in the data matching json file
+                "TRIAL_CATEGORIES": "<comma,separated,trial,categories>", // filter that matches the trial types keys in the data matching json file
                 "SCALAR_STATS_TO_COMPARE": "<comma,separated,data_types>", // Momentum Health A,Momentum Health B,Inhouse,Plug-in Gait
                 "TIME_SERIES_LIST_STATS_TO_COMPARE": "<[list,of,semi-colon];[comma,separated,data_types]>", // Momentum Health A,Momentum Health B,Inhouse,Plug-in Gait
             },

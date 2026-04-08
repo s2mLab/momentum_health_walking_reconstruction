@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .kinematics_data import (
+from ..utils.kinematics_data import (
     BiorbdKinematicsData,
     EmptyKinematicsData,
     MomentumHealthCsvKinematicsData,
@@ -21,27 +21,15 @@ _logger = logging.getLogger(__name__)
 class Metrics:
     @staticmethod
     def get_mean_metrics(
-        data_base_folder: Path,
-        model_base_folder: Path,
-        kinematics_base_folder: Path,
-        subjects: list[str],
+        metrics: dict,
+        data_types: list[str],
         trial_type: TrialType,
-        trial_names: list[str],
         joint_angles_to_fetch: list[Joint],
-        data_matching: dict,
-        show_plot: bool = False,
     ) -> dict:
-
-        _, metrics, data_types = Metrics.get_aligned_data(
-            data_base_folder=data_base_folder,
-            model_base_folder=model_base_folder,
-            kinematics_base_folder=kinematics_base_folder,
-            subjects=subjects,
-            trial_type=trial_type,
-            trial_names=trial_names,
-            data_matching=data_matching,
-            show_plot=show_plot,
-        )
+        """
+        metrics: The full metrics dictionary returned by get_aligned_data, containing all the trial data and extracted sway/gait trials.
+        data_types: The list of data types (e.g., "Momentum Health A", "Momentum Health B", "Inhouse", "Plug-in Gait") that are present in the metrics and should be included in the output.
+        """
 
         # Show metrics
         if trial_type == TrialType.SWAY:
@@ -167,11 +155,32 @@ class Metrics:
         model_base_folder: Path,
         kinematics_base_folder: Path,
         subjects: list[str],
-        trial_type: TrialType,
-        trial_names: list[str],
+        trial_category: str,
         data_matching: dict,
         show_plot: bool = False,
     ) -> tuple[dict, dict, list[str]]:
+
+        if trial_category not in data_matching["trial_types"]:
+            raise ValueError(
+                f"Trial category '{trial_category}' not found in data matching JSON under 'trial_types'. "
+                f"Available categories: {list(data_matching['trial_types'].keys())}"
+            )
+
+        trial_type = data_matching["trial_types"][trial_category]["category"]
+        if trial_type == "gait":
+            trial_type = TrialType.GAIT
+            joint_angles_to_fetch = [Joint.PELVIS, Joint.HIP, Joint.KNEE, Joint.ANKLE]
+        elif trial_type == "sway":
+            trial_type = TrialType.SWAY
+            joint_angles_to_fetch = [Joint.TRUNK]
+        else:
+            raise ValueError(f"Could not determine trial type from file path: {trial_category}")
+
+        trial_names = data_matching["trial_types"][trial_category]["trial_names"]
+        if not isinstance(trial_names, list):
+            raise ValueError(
+                f"Expected 'trial_names' to be a list in the data matching JSON for trial category '{trial_category}'."
+            )
 
         all_data = {}
         all_metrics = {}
@@ -180,9 +189,9 @@ class Metrics:
             all_data[subject] = {}
             metrics = {}
             for trial_name in trial_names:
-                momentum_health_filter_a = data_matching[subject][trial_name]["cameraA"]
-                momentum_health_filter_b = data_matching[subject][trial_name]["cameraB"]
-                inhouse_filter = data_matching[subject][trial_name]["c3d"]
+                momentum_health_filter_a = data_matching["data"][subject][trial_name]["cameraA"]
+                momentum_health_filter_b = data_matching["data"][subject][trial_name]["cameraB"]
+                inhouse_filter = data_matching["data"][subject][trial_name]["c3d"]
                 pig_filter = inhouse_filter
                 if momentum_health_filter_a is None or momentum_health_filter_b is None or inhouse_filter is None:
                     raise ValueError(
@@ -273,7 +282,7 @@ class Metrics:
             all_data[subject][trial_name] = all_subject_data
             all_metrics[subject] = metrics
 
-        return all_data, all_metrics, data_types
+        return trial_type, all_data, all_metrics, data_types
 
 
 def _cut_kinematics_data(

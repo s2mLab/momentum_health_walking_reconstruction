@@ -12,10 +12,10 @@ from scipy.spatial.transform import Rotation
 from tqdm import tqdm
 from scipy.signal import correlate, find_peaks
 
-from ..utils.math import find_first_below_threshold, derivative, nanunwrap
+from .math import find_first_below_threshold, derivative, nanunwrap
 
 if TYPE_CHECKING:
-    from ..utils.analyses_data import GaitCycle, SwayTrial
+    from .analyses_data import GaitCycle, SwayTrial
 
 
 class TrialType(Enum):
@@ -384,7 +384,7 @@ class BiorbdKinematicsData(KinematicsData):
         raise ValueError(f"Marker with suffix '{suffix}' not found in marker names.")
 
     def extract_gait_cycles(self, side: Side, show_plot: bool = False) -> list[GaitCycle]:
-        from ..utils.analyses_data import GaitCycle
+        from .analyses_data import GaitCycle
 
         if self._trial_type != TrialType.GAIT:
             raise ValueError("Gait cycles can only be extracted from GAIT trials.")
@@ -426,7 +426,7 @@ class BiorbdKinematicsData(KinematicsData):
         return cycles
 
     def extract_sway_trial(self, show_plot: bool = False) -> SwayTrial:
-        from ..utils.analyses_data import SwayTrial
+        from .analyses_data import SwayTrial
 
         if self._trial_type != TrialType.SWAY:
             raise ValueError("Sway trials can only be extracted from SWAY trials.")
@@ -860,7 +860,7 @@ class MomentumHealthCsvKinematicsData(KinematicsData):
             raise ValueError("Unsupported point. Only CENTER_OF_MASS is currently supported.")
 
     def extract_gait_cycles(self, side: Side, show_plot: bool = False) -> list[GaitCycle]:
-        from ..utils.analyses_data import PreComputedGaitCycle, GaitCycle
+        from .analyses_data import PreComputedGaitCycle, GaitCycle
 
         if self._trial_type != TrialType.GAIT:
             raise ValueError("Gait cycles can only be extracted from GAIT trials.")
@@ -906,7 +906,7 @@ class MomentumHealthCsvKinematicsData(KinematicsData):
         return out
 
     def extract_sway_trial(self, show_plot: bool = False) -> SwayTrial:
-        from ..utils.analyses_data import PreComputedSwayTrial
+        from .analyses_data import PreComputedSwayTrial
 
         if self._trial_type != TrialType.SWAY:
             raise ValueError("Sway trials can only be extracted from SWAY trials.")
